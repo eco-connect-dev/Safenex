@@ -1,0 +1,54 @@
+[
+  {
+    "id": "GH-2026-04821",
+    "hazardType": "Landslide",
+    "location": "Kandy Rd, Kadawatha",
+    "description": "Large crack appeared near the hillside road after heavy rainfall. The crack is widening and may affect nearby properties.",
+    "submitted": "04 Sep · 09:12",
+    "relativeTime": "12 min ago",
+    "reporter": "Nadeesha Perera",
+    "role": "Community Volunteer",
+    "contact": "+94 77 123 4567",
+    "status": "pending",
+    "evidenceLabel": "Example evidence photo"
+  },
+  {
+    "id": "GH-2026-04820",
+    "hazardType": "Flood",
+    "location": "Negombo Canal Rd",
+    "description": "Water level has risen over the roadside and is affecting access to several homes.",
+    "submitted": "04 Sep · 10:40",
+    "relativeTime": "1 hr ago",
+    "reporter": "Kasun Fernando",
+    "role": "Citizen",
+    "contact": "+94 71 555 0198",
+    "status": "pending",
+    "evidenceLabel": "Location photo"
+  },
+  {
+    "id": "GH-2026-04819",
+    "hazardType": "Blocked Road",
+    "location": "Gampaha Junction",
+    "description": "A fallen tree is blocking one lane near the junction and traffic is moving slowly.",
+    "submitted": "05 Sep · 07:05",
+    "relativeTime": "2 hr ago",
+    "reporter": "Amaya Silva",
+    "role": "Citizen",
+    "contact": "+94 76 201 8854",
+    "status": "pending",
+    "evidenceLabel": "Location photo"
+  },
+  {
+    "id": "GH-2026-04818",
+    "hazardType": "River Overflow",
+    "location": "Kelaniya",
+    "description": "The river has overflowed onto the access road and residents are moving vehicles to higher ground.",
+    "submitted": "05 Sep · 08:22",
+    "relativeTime": "3 hr ago",
+    "reporter": "Nadeesha Perera",
+    "role": "Community Volunteer",
+    "contact": "+94 77 123 4567",
+    "status": "pending",
+    "evidenceLabel": "Location photo"
+  }
+]

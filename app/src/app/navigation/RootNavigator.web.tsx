@@ -3,9 +3,15 @@ import { NavigationContainer } from "@react-navigation/native";
 import { StyleSheet, Text, View } from "react-native";
 
 import { colors, spacing, typography } from "@/src/theme";
+import {
+  GroundReportsScreen,
+  VerifyReportScreen,
+} from "@/src/features/ground-verification/screens/GroundVerificationScreens";
 
 export type WebRootDrawerParamList = {
   OfficerDashboard: undefined;
+  GroundReports: undefined;
+  VerifyReport: { reportId: string };
 };
 
 const Drawer = createDrawerNavigator<WebRootDrawerParamList>();
@@ -36,6 +42,19 @@ export default function RootNavigator() {
           component={OfficerDashboardPlaceholder}
           name="OfficerDashboard"
           options={{ title: "DMC dashboard" }}
+        />
+        <Drawer.Screen
+          component={GroundReportsScreen}
+          name="GroundReports"
+          options={{ title: "Ground reports" }}
+        />
+        <Drawer.Screen
+          component={VerifyReportScreen}
+          name="VerifyReport"
+          options={{
+            drawerItemStyle: { display: "none" },
+            title: "Verify ground report",
+          }}
         />
       </Drawer.Navigator>
     </NavigationContainer>
