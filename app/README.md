@@ -35,3 +35,8 @@ The web navigator includes the DMC ground-verification flow under
 JSON array in `src/api/ground-reports.json`, with typed access through the
 feature API module. The list and report detail routes remain web-only through
 `RootNavigator.web.tsx`.
+
+The web build also resolves `app/(tabs)/home.web.tsx` and
+`app/(tabs)/_layout.web.tsx` instead of the citizen dashboard. This gives
+district officers a dedicated operations overview with links to the
+ground-report queue and verification detail pages.
