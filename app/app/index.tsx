@@ -34,7 +34,7 @@ export default function IndexScreen() {
         if (mounted) {
           setSession(nextSession);
         }
-      }
+      },
     );
 
     return () => {
@@ -52,7 +52,7 @@ export default function IndexScreen() {
   }
 
   if (session) {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href="/home" />;
   }
 
   return <Redirect href="./login" />;

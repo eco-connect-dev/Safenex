@@ -11,9 +11,11 @@ Safenex uses separate navigation roots for its two audiences:
   areas.
 
 Platform-specific files use React Native's `.native.tsx` and `.web.tsx`
-resolution, so a platform bundle imports only its own root navigator. Shared
-domain types, API adapters, theme tokens, UI primitives, and providers live
-under `src/` and can be used by both audiences.
+resolution, so a platform bundle imports only its own root navigator. The
+project uses Expo Router's `Stack` and `Drawer` layouts because Expo SDK 56+
+does not allow application imports from external `@react-navigation/*`
+packages. Shared domain types, API adapters, theme tokens, UI primitives, and
+providers live under `src/` and can be used by both audiences.
 
 The `src/components/map/MapView.native.tsx` and `.web.tsx` pair, together with
 the `src/components/media/CameraCapture.native.tsx` and `.web.tsx` pair, keeps

@@ -8,7 +8,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import type { DrawerScreenProps } from "@react-navigation/drawer";
 
 import { Badge, Button, Card, Icon, Notice } from "@/src/components/ui";
 import type { WebRootDrawerParamList } from "@/src/app/navigation/RootNavigator.web";
@@ -16,10 +15,21 @@ import { colors, radii, spacing, typography } from "@/src/theme";
 import { getGroundReport, groundReports } from "../api";
 import type { GroundReport } from "../types";
 
-type Props<Route extends keyof WebRootDrawerParamList> = DrawerScreenProps<
-  WebRootDrawerParamList,
-  Route
->;
+type WebNavigation = {
+  navigate<Route extends keyof WebRootDrawerParamList>(
+    route: Route,
+    params?: WebRootDrawerParamList[Route],
+  ): void;
+};
+
+type Props<Route extends keyof WebRootDrawerParamList> = {
+  navigation: WebNavigation;
+  route: {
+    key: string;
+    name: Route;
+    params: WebRootDrawerParamList[Route];
+  };
+};
 
 export function GroundReportsScreen({ navigation }: Props<"GroundReports">) {
   const [query, setQuery] = useState("");

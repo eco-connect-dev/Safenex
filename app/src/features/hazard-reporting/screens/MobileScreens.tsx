@@ -10,8 +10,6 @@ import {
 } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { NavigationProp } from "@react-navigation/native";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { Badge, Button, Card, Icon, TextField } from "@/src/components/ui";
 import { colors, radii, spacing, typography } from "@/src/theme";
@@ -20,8 +18,15 @@ import { FlowActions } from "../components/FlowActions";
 import { MobileHeader } from "../components/MobileHeader";
 import { ProgressSteps } from "../components/ProgressSteps";
 
-type Props<Route extends keyof MobileRootStackParamList> =
-  NativeStackScreenProps<MobileRootStackParamList, Route>;
+type MobileNavigation = {
+  navigate<Route extends keyof MobileRootStackParamList>(route: Route): void;
+  goBack(): void;
+};
+
+type Props<Route extends keyof MobileRootStackParamList> = {
+  navigation: MobileNavigation;
+  route: { key: string; name: Route };
+};
 
 export function HomeScreen({ navigation }: Props<"MobileHome">) {
   return (
@@ -392,7 +397,7 @@ function BottomHint({
   navigation,
 }: {
   active: string;
-  navigation?: NavigationProp<MobileRootStackParamList>;
+  navigation?: MobileNavigation;
 }) {
   const routes = {
     Home: "MobileHome",
