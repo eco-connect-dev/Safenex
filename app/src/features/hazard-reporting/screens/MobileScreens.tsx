@@ -3,10 +3,10 @@ import {
   CircleAlert,
   Droplets,
   Ellipsis,
-  MapPin,
   Mountain,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import {
   Alert,
   Image as RNImage,
@@ -25,7 +25,11 @@ import { FlowActions } from "../components/FlowActions";
 import { MobileHeader } from "../components/MobileHeader";
 import { ProgressSteps } from "../components/ProgressSteps";
 import { submitGroundReport } from "../api/submitReport";
+import { getMyGroundReports, type MyGroundReport } from "../api/myReports";
 import { useReportDraft } from "../store/reportDraft";
+import type { GroundReportStatus } from "../../ground-verification/types";
+import { SriLankaLocationMap } from "../components/SriLankaLocationMap";
+import type { MapCoordinate } from "../components/SriLankaLocationMap.native";
 
 type MobileNavigation = {
   navigate<Route extends keyof MobileRootStackParamList>(route: Route): void;
@@ -307,7 +311,26 @@ export function EvidenceScreen({ navigation }: Props<"Evidence">) {
 export function LocationScreen({ navigation }: Props<"Location">) {
   const location = useReportDraft((state) => state.location);
   const district = useReportDraft((state) => state.district);
+  const latitude = useReportDraft((state) => state.latitude);
+  const longitude = useReportDraft((state) => state.longitude);
   const setDraft = useReportDraft((state) => state.setDraft);
+  const selectMapPoint = (coordinate: MapCoordinate) => {
+    const { latitude: selectedLatitude, longitude: selectedLongitude } =
+      coordinate;
+    if (
+      selectedLatitude < 5.8 ||
+      selectedLatitude > 10 ||
+      selectedLongitude < 79.3 ||
+      selectedLongitude > 82.1
+    ) {
+      Alert.alert(
+        "Choose a Sri Lanka location",
+        "The selected point is outside Sri Lanka.",
+      );
+      return;
+    }
+    setDraft({ latitude: selectedLatitude, longitude: selectedLongitude });
+  };
   return (
     <View style={styles.screen}>
       <MobileHeader
@@ -315,16 +338,21 @@ export function LocationScreen({ navigation }: Props<"Location">) {
         title="Hazard Location"
       />
       <ProgressSteps current={4} />
-      <View style={styles.locationContent}>
-        <View style={styles.mapPlaceholder}>
-          <View style={styles.mapRoad} />
-          <View style={styles.mapPin}>
-            <Icon color={colors.white} icon={MapPin} size={28} />
-          </View>
-          <Text style={styles.mapLabel}>
-            {location || "Enter the incident location below"}
+      <ScrollView contentContainerStyle={styles.locationContent}>
+        <SriLankaLocationMap
+          latitude={latitude}
+          longitude={longitude}
+          onSelect={selectMapPoint}
+        />
+        <Text style={styles.helper}>
+          Tap the map or drag the pin to mark the incident. Add the nearby place
+          and district below.
+        </Text>
+        {latitude !== null && longitude !== null ? (
+          <Text style={styles.mapCoordinates}>
+            Pinned at {latitude.toFixed(5)}, {longitude.toFixed(5)}
           </Text>
-        </View>
+        ) : null}
         <TextField
           label="LOCATION"
           value={location}
@@ -337,7 +365,7 @@ export function LocationScreen({ navigation }: Props<"Location">) {
           onChangeText={(value) => setDraft({ district: value })}
           placeholder="District"
         />
-      </View>
+      </ScrollView>
       <FlowActions
         continueLabel="REVIEW REPORT"
         onBack={() => navigation.goBack()}
@@ -398,6 +426,12 @@ export function ReviewScreen({ navigation }: Props<"ReviewReport">) {
           label="LOCATION"
           value={`${draft.location || "—"}, ${draft.district || "—"}`}
         />
+        {draft.latitude !== null && draft.longitude !== null ? (
+          <ReviewItem
+            label="MAP PIN"
+            value={`${draft.latitude.toFixed(5)}, ${draft.longitude.toFixed(5)}`}
+          />
+        ) : null}
         <Text style={styles.submitting}>
           Submitted reports are marked pending verification.
         </Text>
@@ -471,56 +505,94 @@ export function SubmittedScreen({ navigation }: Props<"Submitted">) {
 }
 
 export function ReportsScreen({ navigation }: Props<"MyReports">) {
+  const [reports, setReports] = useState<MyGroundReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setLoading(true);
+      getMyGroundReports()
+        .then((items) => {
+          if (!active) return;
+          setReports(items);
+          setLoadError("");
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            setLoadError(
+              error instanceof Error
+                ? error.message
+                : "Your reports could not be loaded.",
+            );
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
   return (
     <View style={styles.screen}>
       <MobileHeader onBack={() => navigation.goBack()} title="My Reports" />
       <ScrollView contentContainerStyle={styles.content}>
-        <ReportCard
-          status="APPROVED"
-          title="Landslide"
-          detail="Kandy Rd, Kadawatha · 04 Sep, 09:12"
-        />
-        <ReportCard
-          status="PENDING"
-          title="Flood"
-          detail="Negombo Canal Rd · 04 Sep, 10:40"
-        />
-        <ReportCard
-          status="REJECTED"
-          title="Blocked Road"
-          detail="Gampaha Junction · 05 Sep, 07:05"
-        />
+        {loading ? (
+          <Text style={styles.reportsMessage}>Loading your reports…</Text>
+        ) : null}
+        {loadError ? (
+          <Text style={styles.reportsError}>{loadError}</Text>
+        ) : null}
+        {!loading && !loadError && reports.length === 0 ? (
+          <Card style={styles.emptyReports}>
+            <Text style={styles.reportTitle}>No reports yet</Text>
+            <Text style={styles.rowMeta}>
+              Hazard reports you submit will appear here.
+            </Text>
+            <Button
+              label="REPORT A HAZARD"
+              onPress={() => navigation.navigate("HazardType")}
+              size="md"
+            />
+          </Card>
+        ) : null}
+        {reports.map((report) => (
+          <ReportCard key={report.id} report={report} />
+        ))}
       </ScrollView>
       <BottomHint active="Reports" navigation={navigation} />
     </View>
   );
 }
 
-function ReportCard({
-  status,
-  title,
-  detail,
-}: {
-  status: "APPROVED" | "PENDING" | "REJECTED";
-  title: string;
-  detail: string;
-}) {
-  const tone =
-    status === "APPROVED"
-      ? "success"
-      : status === "PENDING"
-        ? "warning"
-        : "danger";
+function ReportCard({ report }: { report: MyGroundReport }) {
+  const statusLabel: Record<GroundReportStatus, string> = {
+    pending_review: "PENDING",
+    accepted: "VERIFIED",
+    rejected: "REJECTED",
+  };
+  const tone: Record<GroundReportStatus, "success" | "warning" | "danger"> = {
+    pending_review: "warning",
+    accepted: "success",
+    rejected: "danger",
+  };
   return (
     <Card style={styles.reportCard}>
       <View style={styles.reportHeader}>
         <View>
-          <Text style={styles.reportTitle}>{title}</Text>
-          <Text style={styles.rowMeta}>{detail}</Text>
+          <Text style={styles.reportTitle}>{report.title}</Text>
+          <Text style={styles.rowMeta}>
+            {report.location}, {report.district} ·{" "}
+            {new Date(report.submittedAt).toLocaleString()}
+          </Text>
         </View>
-        <Badge label={status} tone={tone} />
+        <Badge label={statusLabel[report.status]} tone={tone[report.status]} />
       </View>
-      {status === "APPROVED" ? <NoticeText /> : null}
+      {report.status === "accepted" ? <NoticeText /> : null}
     </Card>
   );
 }
@@ -729,39 +801,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: spacing.sm,
   },
-  locationContent: { flex: 1, gap: spacing.md, padding: spacing.lg },
-  mapPlaceholder: {
-    backgroundColor: "#DCECD8",
-    borderRadius: radii.lg,
-    height: 270,
-    overflow: "hidden",
-    position: "relative",
-  },
-  mapRoad: {
-    backgroundColor: colors.white,
-    height: 18,
-    left: -20,
-    position: "absolute",
-    right: -20,
-    top: 120,
-    transform: [{ rotate: "-5deg" }],
-  },
-  mapPin: {
-    alignItems: "center",
-    alignSelf: "center",
-    backgroundColor: "#E84C2B",
-    borderRadius: radii.pill,
-    height: 52,
-    justifyContent: "center",
-    marginTop: 80,
-    width: 52,
-  },
-  mapLabel: {
-    backgroundColor: colors.white,
-    bottom: spacing.sm,
-    left: spacing.sm,
-    padding: spacing.sm,
-    position: "absolute",
+  locationContent: { gap: spacing.md, padding: spacing.lg },
+  mapCoordinates: {
+    color: colors.primaryDark,
+    fontSize: typography.sizes.xs,
+    fontWeight: "700",
   },
   reviewContent: { gap: spacing.sm, padding: spacing.lg },
   reviewItem: { flexDirection: "row", justifyContent: "space-between" },
@@ -811,6 +855,18 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   reportCard: { gap: spacing.md },
+  reportsMessage: {
+    color: colors.textMuted,
+    fontSize: typography.sizes.sm,
+    paddingVertical: spacing.lg,
+    textAlign: "center",
+  },
+  reportsError: {
+    color: colors.red,
+    fontSize: typography.sizes.sm,
+    padding: spacing.md,
+  },
+  emptyReports: { gap: spacing.md },
   reportHeader: {
     alignItems: "flex-start",
     flexDirection: "row",

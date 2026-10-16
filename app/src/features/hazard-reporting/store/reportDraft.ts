@@ -13,6 +13,8 @@ type ReportDraft = {
   description: string;
   location: string;
   district: string;
+  latitude: number | null;
+  longitude: number | null;
   image: ReportImage | null;
   submittedId: string | null;
   setDraft: (draft: Partial<ReportDraft>) => void;
@@ -24,6 +26,8 @@ const initialDraft = {
   description: "",
   location: "",
   district: "",
+  latitude: null,
+  longitude: null,
   image: null,
   submittedId: null,
 };
