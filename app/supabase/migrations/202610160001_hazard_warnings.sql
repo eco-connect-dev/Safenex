@@ -8,8 +8,6 @@ create table if not exists public.hazards (
   severity text not null check (severity in ('low', 'moderate', 'high', 'critical')),
   location text not null,
   district text not null,
-  latitude double precision not null check (latitude between -90 and 90),
-  longitude double precision not null check (longitude between -180 and 180),
   affected_people integer not null default 0 check (affected_people >= 0),
   status text not null default 'active' check (status in ('active', 'resolved')),
   source text not null default 'seed',
@@ -69,11 +67,11 @@ create policy "Authors can update their warning drafts" on public.hazard_warning
   with check (created_by = auth.uid());
 
 insert into public.hazards
-  (id, hazard_type, title, description, severity, location, district, latitude, longitude, affected_people, observed_at)
+  (id, hazard_type, title, description, severity, location, district, affected_people, observed_at)
 values
-  ('a1100000-0000-4000-8000-000000000001', 'flood', 'Kelani River flood watch', 'River levels are rising after sustained rainfall. Low-lying areas should prepare to move to higher ground.', 'high', 'Hanwella and low-lying Kelani River banks', 'Colombo', 6.9061, 80.0833, 12430, now() - interval '18 minutes'),
-  ('a1100000-0000-4000-8000-000000000002', 'landslide', 'Landslide risk near Kandy Road', 'Heavy rainfall has saturated slopes. Avoid the road cut and follow local authority guidance.', 'critical', 'Kadugannawa, Kandy Road', 'Kandy', 7.2547, 80.5247, 2800, now() - interval '42 minutes'),
-  ('a1100000-0000-4000-8000-000000000003', 'flood', 'Nilwala River elevated water level', 'Water levels remain above the minor flood threshold near the lower catchment.', 'moderate', 'Akuressa and lower Nilwala basin', 'Matara', 6.0985, 80.4808, 5400, now() - interval '1 hour')
+  ('a1100000-0000-4000-8000-000000000001', 'flood', 'Kelani River flood watch', 'River levels are rising after sustained rainfall. Low-lying areas should prepare to move to higher ground.', 'high', 'Hanwella and low-lying Kelani River banks', 'Colombo', 12430, now() - interval '18 minutes'),
+  ('a1100000-0000-4000-8000-000000000002', 'landslide', 'Landslide risk near Kandy Road', 'Heavy rainfall has saturated slopes. Avoid the road cut and follow local authority guidance.', 'critical', 'Kadugannawa, Kandy Road', 'Kandy', 2800, now() - interval '42 minutes'),
+  ('a1100000-0000-4000-8000-000000000003', 'flood', 'Nilwala River elevated water level', 'Water levels remain above the minor flood threshold near the lower catchment.', 'moderate', 'Akuressa and lower Nilwala basin', 'Matara', 5400, now() - interval '1 hour')
 on conflict (id) do update set
   hazard_type = excluded.hazard_type,
   title = excluded.title,
@@ -81,7 +79,5 @@ on conflict (id) do update set
   severity = excluded.severity,
   location = excluded.location,
   district = excluded.district,
-  latitude = excluded.latitude,
-  longitude = excluded.longitude,
   affected_people = excluded.affected_people,
   observed_at = excluded.observed_at;

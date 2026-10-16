@@ -27,8 +27,9 @@ const page = "#F3F6FA";
 export function AffectedAreaScreen() {
   const [modified, setModified] = useState(false);
   const [hazard, setHazard] = useState<HazardRecord | null>(null);
+  const [hazards, setHazards] = useState<HazardRecord[]>([]);
   useEffect(() => {
-    getActiveHazards().then((items) => setHazard(items[0] ?? null)).catch(() => setHazard(null));
+    getActiveHazards().then((items) => { setHazards(items); setHazard(items[0] ?? null); }).catch(() => setHazard(null));
   }, []);
 
   return (
@@ -58,13 +59,15 @@ export function AffectedAreaScreen() {
           </View>
           <View style={styles.formGrid}>
             <Field label="COVERAGE TYPE" value="River basin" dropdown />
-            <Field label="HAZARD" value={hazard?.title ?? "Loading…"} />
-            <Field label="DISTRICT / TERRITORY" value={hazard?.district ?? "—"} dropdown full />
-            <Field label="LATITUDE (°N)" value={hazard?.latitude.toFixed(4) ?? "—"} mono />
-            <Field label="LONGITUDE (°E)" value={hazard?.longitude.toFixed(4) ?? "—"} mono />
+            <Field label="HAZARD TYPE" value={hazard?.hazard_type ?? "—"} />
+            <Field label="DISTRICT / TERRITORY" value={hazard?.district ?? "—"} full />
+            <Field label="SEVERITY" value={hazard?.severity ?? "—"} />
+            <Field label="PEOPLE AFFECTED" value={hazard?.affected_people.toLocaleString() ?? "—"} />
           </View>
-          <Text style={styles.helperMono}>Coordinate reference system: WGS 84 / UTM zone 47N</Text>
-          <Field label="WARNING RADIUS (BUFFER ZONE)" value="14.8                 km" />
+          <Text style={styles.inputLabel}>SELECT A HAZARD FROM THE ACTIVE HAZARDS TABLE</Text>
+          <View style={styles.coverageOptions}>
+            {hazards.map((item) => <Pressable key={item.id} onPress={() => setHazard(item)} style={[styles.coverageOption, hazard?.id === item.id && styles.coverageOptionSelected]}><Text style={styles.coverageOptionTitle}>{item.title}</Text><Text style={styles.coverageOptionMeta}>{item.hazard_type} · {item.severity} · {item.location}, {item.district}</Text></Pressable>)}
+          </View>
           <View style={styles.locked}>
             <Icon color={muted} icon={LockKeyhole} size={17} />
             <Text style={styles.lockedText}>Affected area: <Text style={styles.bold}>{hazard?.location ?? "—"}</Text> · Hazard type: {hazard?.hazard_type ?? "—"}</Text>
@@ -101,27 +104,30 @@ export function AffectedAreaScreen() {
         <View style={[styles.summaryRow, styles.responsiveWrap]}>
           <Summary icon={AlertTriangle} title="HAZARD" value={hazard?.title ?? "No active hazard"} hint={hazard?.description ?? "Check Supabase connection"} tone="red" />
           <Summary icon={BarChart3} title="SEVERITY" value={hazard?.severity.toUpperCase() ?? "—"} hint={`${hazard?.affected_people.toLocaleString() ?? "0"} people potentially affected`} tone="amber" />
-          <Summary icon={MapPin} title="LOCATION" value={hazard?.location ?? "—"} hint={hazard ? `${hazard.latitude.toFixed(4)}, ${hazard.longitude.toFixed(4)} · ${hazard.district}` : "WGS 84 coordinates"} tone="blue" />
+          <Summary icon={MapPin} title="LOCATION" value={hazard?.location ?? "—"} hint={hazard?.district ?? "Select an active hazard"} tone="blue" />
         </View>
       </View>
-      <BottomBar button="Prepare warning" onPress={() => router.push("/web/prepare-warning" as never)} />
+      <BottomBar button="Prepare warning" onPress={() => hazard && router.push({ pathname: "/web/prepare-warning", params: { hazardId: hazard.id } } as never)} />
     </WorkflowShell>
   );
 }
 
 export function PrepareWarningScreen() {
+  const params = useLocalSearchParams<{ hazardId?: string }>();
   const [tier, setTier] = useState(3);
   const [language, setLanguage] = useState("EN · English");
+  const [channels, setChannels] = useState<string[]>(["push", "sms", "siren"]);
   const [message, setMessage] = useState("Severe flooding is expected. Move to higher ground immediately and follow official protection instructions.");
   const [hazard, setHazard] = useState<HazardRecord | null>(null);
   const [hazardError, setHazardError] = useState("");
   const [draftMessage, setDraftMessage] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
   useEffect(() => {
-    getActiveHazards().then((items) => setHazard(items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
+    getActiveHazards().then((items) => setHazard(items.find((item) => item.id === params.hazardId) ?? items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
   }, []);
   const saveDraft = async () => {
     if (!hazard) return;
+    if (!channels.length) { setDraftMessage("Select at least one distribution channel."); return; }
     setSavingDraft(true);
     setDraftMessage("");
     try {
@@ -134,7 +140,7 @@ export function PrepareWarningScreen() {
         status: "draft",
         target_location: `${hazard.location}, ${hazard.district}`,
         affected_people: hazard.affected_people,
-        channels: ["push", "sms", "siren"],
+        channels,
       });
       setDraftMessage("Draft saved to Supabase.");
     } catch (error) {
@@ -188,20 +194,23 @@ export function PrepareWarningScreen() {
           <View style={styles.tokenRow}><Token text="+ Sungai Muda Basin" /><Token text="+ SMK Merbok Relief Centre" /><Token text="+ Hotline 999" /></View>
         </View>
         <View style={[styles.card, styles.responsiveCard]}>
-          <View style={styles.cardHeadingRow}><Text style={styles.sectionHeading}>Distribution channels</Text><View style={styles.channelCount}><Text style={styles.channelCountText}>3 channels configured</Text></View></View>
-          <Channel title="Push notification" copy="12,430 registered devices" latency="1.2 s gateway latency · Within target" />
-          <Channel title="SMS cell broadcast" copy="All active cellular towers · Priority 0" latency="1.8 s gateway latency · Within target" />
-          <Channel title="Audible siren override" copy="6 sirens online · RF over-the-air" latency="2.1 s gateway latency · Degradation watch" warning />
+          <View style={styles.cardHeadingRow}><Text style={styles.sectionHeading}>Distribution channels</Text><View style={styles.channelCount}><Text style={styles.channelCountText}>{channels.length} selected</Text></View></View>
+          <Text style={styles.cardSubtitle}>Select the channels to include with this warning.</Text>
+          <Channel selected={channels.includes("push")} onPress={() => setChannels((current) => current.includes("push") ? current.filter((value) => value !== "push") : [...current, "push"])} title="Push notification" copy="Send an in-app alert to subscribed devices" latency="Mobile notification channel" />
+          <Channel selected={channels.includes("sms")} onPress={() => setChannels((current) => current.includes("sms") ? current.filter((value) => value !== "sms") : [...current, "sms"])} title="SMS broadcast" copy="Send a text alert to the affected area" latency="SMS channel" />
+          <Channel selected={channels.includes("siren")} onPress={() => setChannels((current) => current.includes("siren") ? current.filter((value) => value !== "siren") : [...current, "siren"])} title="Audible siren" copy="Request local siren activation" latency="Community siren channel" />
+          <Channel selected={channels.includes("email")} onPress={() => setChannels((current) => current.includes("email") ? current.filter((value) => value !== "email") : [...current, "email"])} title="Email" copy="Send an email alert to subscribed contacts" latency="Email channel" />
         </View>
       </View>
-      <BottomBar button="Review warning" saveLabel={savingDraft ? "Saving…" : "Save draft"} onSave={() => void saveDraft()} onPress={() => router.push({ pathname: "/web/review-authorize", params: { tier: String(tier), message, language: language.startsWith("BM") ? "bm" : "en" } } as never)} />
+      <BottomBar button="Review warning" saveLabel={savingDraft ? "Saving…" : "Save draft"} onSave={() => void saveDraft()} onPress={() => router.push({ pathname: "/web/review-authorize", params: { tier: String(tier), message, hazardId: hazard?.id ?? "", channels: channels.join(","), language: language.startsWith("BM") ? "bm" : "en" } } as never)} />
     </WorkflowShell>
   );
 }
 
 export function ReviewAuthorizeScreen() {
-  const params = useLocalSearchParams<{ tier?: string; message?: string; language?: string }>();
+  const params = useLocalSearchParams<{ tier?: string; message?: string; language?: string; hazardId?: string; channels?: string }>();
   const warningTier = Math.min(3, Math.max(1, Number(params.tier) || 3));
+  const selectedChannels = typeof params.channels === "string" ? params.channels.split(",").filter(Boolean) : ["push", "sms", "siren"];
   const [issuing, setIssuing] = useState(false);
   const [hazard, setHazard] = useState<HazardRecord | null>(null);
   const [hazardError, setHazardError] = useState("");
@@ -209,11 +218,15 @@ export function ReviewAuthorizeScreen() {
   const [saving, setSaving] = useState(false);
   const [message] = useState(typeof params.message === "string" ? params.message : "Severe flooding is expected. Move to higher ground immediately and follow official protection instructions.");
   useEffect(() => {
-    getActiveHazards().then((items) => setHazard(items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
+    getActiveHazards().then((items) => setHazard(items.find((item) => item.id === params.hazardId) ?? items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
   }, []);
   const persistWarning = async (status: "draft" | "issued") => {
     if (!hazard) {
       setActionMessage(hazardError || "No active hazard was found. Apply the Supabase migration and try again.");
+      return;
+    }
+    if (!selectedChannels.length) {
+      setActionMessage("Select at least one distribution channel before saving.");
       return;
     }
     setSaving(true);
@@ -229,7 +242,7 @@ export function ReviewAuthorizeScreen() {
         status,
         target_location: `${hazard.location}, ${hazard.district}`,
         affected_people: hazard.affected_people,
-        channels: ["push", "sms", "siren"],
+        channels: selectedChannels,
         ...(status === "issued" ? { issued_by: user?.id ?? null, issued_at: new Date().toISOString() } : {}),
       });
       setActionMessage(status === "issued" ? "Warning issued and saved to Supabase." : "Warning draft saved to Supabase.");
@@ -282,7 +295,7 @@ export function ReviewAuthorizeScreen() {
           <View style={styles.areaBox}>
             <Text style={styles.areaLine}><Text style={styles.bold}>Hazard type:</Text> {hazard?.hazard_type ?? "—"}</Text>
             <Text style={styles.areaLine}><Text style={styles.bold}>District:</Text> {hazard?.district ?? "—"}</Text>
-            <Text style={styles.areaLine}><Text style={styles.bold}>Coordinates:</Text> {hazard ? `${hazard.latitude.toFixed(4)}°N, ${hazard.longitude.toFixed(4)}°E` : "—"}</Text>
+            <Text style={styles.areaLine}><Text style={styles.bold}>Affected people:</Text> {hazard?.affected_people.toLocaleString() ?? "—"}</Text>
             <Text style={styles.areaLine}><Text style={styles.bold}>Description:</Text> {hazard?.description ?? "—"}</Text>
           </View>
           <Text style={styles.reviewSection}>HAZARD EXTENT</Text>
@@ -307,7 +320,7 @@ export function ReviewAuthorizeScreen() {
           </View>
           <View style={styles.behaviourBox}>
             <Text style={styles.behaviourTitle}>Push Broadcast Behaviour</Text>
-            <Text style={styles.behaviourText}>Standard cell devices in coverage zone will receive high-priority tone interruption and full-screen display warning.</Text>
+          <Text style={styles.behaviourText}>Selected channels: {selectedChannels.length ? selectedChannels.join(", ") : "None"}. Gateway delivery must be configured separately.</Text>
           </View>
         </View>
 
@@ -349,7 +362,7 @@ function Field({ label, value, dropdown, full, mono }: { label: string; value: s
 function Stat({ label, value, suffix }: { label: string; value: string; suffix: string }) { return <View style={styles.stat}><Text style={styles.statLabel}>{label}</Text><Text style={styles.statValue}>{value} <Text style={styles.statSuffix}>{suffix}</Text></Text></View>; }
 function Summary({ icon, title, value, hint, tone }: { icon: typeof AlertTriangle; title: string; value: string; hint: string; tone: "red" | "amber" | "blue" }) { return <View style={styles.summary}><View style={[styles.summaryIcon, tone === "red" ? styles.redBg : tone === "amber" ? styles.amberBg : styles.blueBg]}><Icon color={tone === "red" ? colors.red : tone === "amber" ? "#D97706" : colors.primary} icon={icon} size={20} /></View><View><Text style={styles.summaryTitle}>{title}</Text><Text style={styles.summaryValue}>{value}</Text><Text style={styles.summaryHint}>{hint}</Text></View></View>; }
 function Tier({ number, title, copy, selected, onPress }: { number: string; title: string; copy: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} style={[styles.tier, selected && styles.tierSelected]}><Text style={[styles.tierOverline, selected && styles.blueText]}>LEVEL {number}{selected ? " · SELECTED" : ""}</Text><Text style={styles.tierTitle}>{title}</Text><Text style={styles.tierCopy}>{copy}</Text>{selected ? <View style={styles.selectedCheck}><Icon color={colors.white} icon={Check} size={13} /></View> : null}</Pressable>; }
-function Channel({ title, copy, latency, warning = false }: { title: string; copy: string; latency: string; warning?: boolean }) { return <View style={[styles.channel, warning && styles.channelWarning]}><View style={[styles.channelDot, warning && styles.channelDotWarning]} /><View style={styles.channelCopy}><Text style={styles.channelTitle}>{title}</Text><Text style={styles.channelMeta}>{copy}</Text><Text style={[styles.channelLatency, warning && styles.warningText]}>{latency}</Text></View><Text style={styles.channelOn}>On</Text></View>; }
+function Channel({ title, copy, latency, selected, onPress }: { title: string; copy: string; latency: string; selected: boolean; onPress: () => void }) { return <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={onPress} style={[styles.channel, selected && styles.channelSelected]}><View style={[styles.channelDot, !selected && styles.channelDotOff]} /><View style={styles.channelCopy}><Text style={styles.channelTitle}>{title}</Text><Text style={styles.channelMeta}>{copy}</Text><Text style={styles.channelLatency}>{latency}</Text></View><Text style={styles.channelOn}>{selected ? "Selected" : "Off"}</Text></Pressable>; }
 function Token({ text }: { text: string }) { return <View style={styles.token}><Text style={styles.tokenText}>{text}</Text></View>; }
 function ReviewRow({ danger = false, label, mono = false, value }: { danger?: boolean; label: string; mono?: boolean; value: string }) { return <View style={styles.reviewRow}><Text style={styles.reviewLabel}>{label}</Text><Text style={[styles.reviewValue, danger && styles.reviewDanger, mono && styles.reviewMono]}>{value}</Text></View>; }
 function Payload({ danger = false, label, value }: { danger?: boolean; label: string; value: string }) { return <View style={styles.payloadRow}><Text style={styles.payloadLabel}>{label}</Text><Text style={[styles.payloadValue, danger && styles.reviewDanger]}>{value}</Text></View>; }
@@ -376,13 +389,13 @@ const styles = StyleSheet.create({
   content: { gap: 30, padding: 40, paddingBottom: 120 }, heading: { gap: 8 }, title: { color: ink, fontSize: 32, fontWeight: "800" }, subtitle: { color: muted, fontSize: 19 }, steps: { flexDirection: "row", gap: 15 }, step: { alignItems: "center", backgroundColor: "#F8FAFC", borderColor: "#E1E8F0", borderRadius: 12, borderWidth: 1, flex: 1, flexDirection: "row", gap: 14, minHeight: 80, padding: 16 }, stepActive: { backgroundColor: "#EFF6FF", borderColor: colors.primary, borderWidth: 2 }, stepComplete: { backgroundColor: "#F0FDF9", borderColor: "#86E7C0" }, stepCircle: { alignItems: "center", backgroundColor: "#E8EEF5", borderRadius: 20, height: 38, justifyContent: "center", width: 38 }, stepActiveCircle: { backgroundColor: colors.primary }, stepNumber: { color: "#92A3B9", fontSize: 16, fontWeight: "800" }, activeStepText: { color: colors.primary }, stepOverline: { color: "#9AABC1", fontSize: 14, fontWeight: "700" }, stepLabel: { color: "#71849F", fontSize: 15, marginTop: 3 },
   alertBar: { alignItems: "center", backgroundColor: "#FFF2F1", borderColor: "#FFB9B6", borderLeftColor: colors.red, borderLeftWidth: 4, borderRadius: 11, flexDirection: "row", gap: 16, minHeight: 68, paddingHorizontal: 22 }, alertCopy: { color: "#982929", fontSize: 16 }, alertStrong: { fontWeight: "800" },
   twoColumns: { flexDirection: "row", gap: 30 }, card: { backgroundColor: colors.white, borderColor: "#D9E2EC", borderRadius: 15, borderWidth: 1, flex: 1, minWidth: 500, padding: 30 }, cardHeadingRow: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" }, cardTitle: { color: ink, fontSize: 21, fontWeight: "800" }, cardSubtitle: { color: muted, fontSize: 14, marginTop: 5 }, outlineButton: { borderColor: "#70A9FF", borderRadius: 8, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 10 }, outlineText: { color: colors.primary, fontSize: 14, fontWeight: "700" },
-  formGrid: { borderTopColor: "#E6EDF4", borderTopWidth: 1, flexDirection: "row", flexWrap: "wrap", marginTop: 20, paddingTop: 20 }, field: { paddingRight: 14, width: "50%" }, fullField: { width: "100%" }, inputLabel: { color: "#1C3352", fontSize: 14, fontWeight: "700", letterSpacing: 0.4, marginBottom: 8, marginTop: 14 }, fieldBox: { alignItems: "center", borderColor: "#C6D4E4", borderRadius: 9, borderWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 48, paddingHorizontal: 15 }, fieldValue: { color: ink, fontSize: 16 }, mono: { fontFamily: "monospace" }, helperMono: { color: "#8DA2BD", fontFamily: "monospace", fontSize: 13, marginTop: 15 }, locked: { alignItems: "center", backgroundColor: "#F7F9FC", borderRadius: 10, flexDirection: "row", gap: 12, marginTop: 24, padding: 15 }, lockedText: { color: "#49607D", fontSize: 14 },
+  formGrid: { borderTopColor: "#E6EDF4", borderTopWidth: 1, flexDirection: "row", flexWrap: "wrap", marginTop: 20, paddingTop: 20 }, field: { paddingRight: 14, width: "50%" }, fullField: { width: "100%" }, inputLabel: { color: "#1C3352", fontSize: 14, fontWeight: "700", letterSpacing: 0.4, marginBottom: 8, marginTop: 14 }, fieldBox: { alignItems: "center", borderColor: "#C6D4E4", borderRadius: 9, borderWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 48, paddingHorizontal: 15 }, fieldValue: { color: ink, fontSize: 16 }, mono: { fontFamily: "monospace" }, helperMono: { color: "#8DA2BD", fontFamily: "monospace", fontSize: 13, marginTop: 15 }, coverageOptions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 }, coverageOption: { borderColor: "#DDE6F0", borderRadius: 8, borderWidth: 1, flexGrow: 1, minWidth: 220, padding: 12 }, coverageOptionSelected: { backgroundColor: "#EFF6FF", borderColor: colors.primary, borderWidth: 2 }, coverageOptionTitle: { color: ink, fontSize: 14, fontWeight: "700" }, coverageOptionMeta: { color: muted, fontSize: 12, marginTop: 6 }, locked: { alignItems: "center", backgroundColor: "#F7F9FC", borderRadius: 10, flexDirection: "row", gap: 12, marginTop: 24, padding: 15 }, lockedText: { color: "#49607D", fontSize: 14 },
   triageRow: { flexDirection: "row", justifyContent: "space-between" }, criticalPill: { alignSelf: "flex-start", backgroundColor: "#FFE0DF", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5 }, criticalPillText: { color: colors.red, fontSize: 14, fontWeight: "800" }, basinTitle: { color: ink, fontSize: 24, fontWeight: "800", marginTop: 16 }, buildingIcon: { alignItems: "center", backgroundColor: "#EFF6FF", borderColor: "#CBE0FF", borderRadius: 12, borderWidth: 1, height: 50, justifyContent: "center", width: 50 }, statRow: { flexDirection: "row", gap: 20, marginTop: 32 }, stat: { backgroundColor: "#F8FAFC", borderRadius: 13, flex: 1, minHeight: 126, padding: 20 }, statLabel: { color: muted, fontSize: 14, lineHeight: 19 }, statValue: { color: ink, fontFamily: "monospace", fontSize: 29, fontWeight: "800", marginTop: 15 }, statSuffix: { color: "#283E5E", fontFamily: "System", fontSize: 15, fontWeight: "400" }, exposed: { backgroundColor: "#FFF8F7", borderColor: "#FFAAA7", borderRadius: 13, borderWidth: 1, marginTop: 20, padding: 20 }, exposedLabel: { color: colors.red, fontSize: 14, fontWeight: "800" }, exposedValue: { color: colors.red, fontFamily: "monospace", fontSize: 33, fontWeight: "800", marginTop: 8 }, exposedUnit: { fontFamily: "System", fontSize: 16 }, exposedHint: { color: colors.red, fontSize: 14, marginTop: 6 }, successBox: { alignItems: "flex-start", backgroundColor: "#F0FDF9", borderColor: "#72E2B7", borderRadius: 13, borderWidth: 1, flexDirection: "row", gap: 12, marginTop: 60, padding: 20 }, successMark: { alignItems: "center", backgroundColor: "#059669", borderRadius: 10, height: 20, justifyContent: "center", width: 20 }, successText: { color: "#145A49", flex: 1, fontSize: 14, lineHeight: 20 },
   summaryCard: { backgroundColor: colors.white, borderColor: "#D9E2EC", borderRadius: 15, borderWidth: 1, padding: 30 }, summaryHeader: { flexDirection: "row", justifyContent: "space-between" }, sectionTitle: { color: "#1F385B", fontSize: 17, fontWeight: "800", letterSpacing: 0.8 }, sync: { color: "#8EA2BD", fontFamily: "monospace", fontSize: 14 }, summaryRow: { flexDirection: "row", gap: 20, marginTop: 24 }, summary: { alignItems: "center", backgroundColor: "#F8FAFC", borderColor: "#DCE5EF", borderRadius: 13, flex: 1, flexDirection: "row", gap: 15, padding: 20 }, summaryIcon: { alignItems: "center", borderRadius: 10, height: 45, justifyContent: "center", width: 45 }, redBg: { backgroundColor: "#FFE1E0" }, amberBg: { backgroundColor: "#FFF2C9" }, blueBg: { backgroundColor: "#DDEBFF" }, summaryTitle: { color: muted, fontSize: 14, fontWeight: "700" }, summaryValue: { color: ink, fontSize: 16, fontWeight: "800", marginTop: 5 }, summaryHint: { color: muted, fontSize: 13, marginTop: 4 },
   bottomBar: { alignItems: "center", backgroundColor: colors.white, borderTopColor: "#D9E2EC", borderTopWidth: 1, bottom: 0, flexDirection: "row", gap: 25, minHeight: 80, paddingHorizontal: 40, position: "absolute", width: "100%" }, saveButton: { borderColor: "#B9C9DC", borderRadius: 8, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 11 }, saveText: { color: "#334B6B", fontSize: 14, fontWeight: "700" }, bottomHint: { color: muted, flex: 1, fontSize: 14, textAlign: "right" }, primaryButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 8, flexDirection: "row", gap: 10, justifyContent: "center", minWidth: 210, paddingHorizontal: 20, paddingVertical: 14 }, primaryText: { color: colors.white, fontSize: 14, fontWeight: "800" }, bold: { fontWeight: "800" },
   sectionHeading: { color: ink, fontSize: 18, fontWeight: "800" }, tierRow: { flexDirection: "row", gap: 20, marginTop: 22 }, tier: { borderColor: "#D8E2EE", borderRadius: 13, borderWidth: 1, flex: 1, minHeight: 160, padding: 20, position: "relative" }, tierSelected: { backgroundColor: "#F3F8FF", borderColor: colors.primary, borderWidth: 2 }, tierOverline: { color: muted, fontSize: 14, fontWeight: "700" }, blueText: { color: colors.primary }, tierTitle: { color: ink, fontSize: 20, fontWeight: "800", marginTop: 12 }, tierCopy: { color: "#334A69", fontSize: 15, lineHeight: 24, marginTop: 14 }, selectedCheck: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 10, height: 20, justifyContent: "center", position: "absolute", right: 20, top: 20, width: 20 },
   broadcastTop: { alignItems: "center", borderBottomColor: "#E5ECF4", borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", marginTop: 20, paddingBottom: 16 }, languageTabs: { backgroundColor: "#EDF2F8", borderRadius: 9, flexDirection: "row", padding: 5 }, languageTab: { borderRadius: 6, paddingHorizontal: 13, paddingVertical: 9 }, languageActive: { backgroundColor: colors.primary }, languageText: { color: "#263B58", fontSize: 14 }, languageActiveText: { color: colors.white, fontWeight: "700" }, templateButton: { alignItems: "center", borderColor: "#BCCCE0", borderRadius: 8, flexDirection: "row", gap: 8, paddingHorizontal: 13, paddingVertical: 10 }, templateText: { color: "#253C5A", fontSize: 14, fontWeight: "700" }, messageInput: { borderColor: "#C7D5E5", borderRadius: 10, borderWidth: 1, color: ink, fontSize: 16, lineHeight: 27, minHeight: 145, padding: 15, textAlignVertical: "top" }, progressTrack: { backgroundColor: "#E5ECF4", borderRadius: 4, height: 7, marginTop: 24 }, progressFill: { backgroundColor: "#10B981", borderRadius: 4, height: 7, width: "59%" }, characterRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 9 }, characterText: { color: muted, fontSize: 13 }, safeText: { color: "#059669", fontSize: 13 }, tokenHint: { borderTopColor: "#E5ECF4", borderTopWidth: 1, color: "#8BA0BB", fontSize: 13, marginTop: 24, paddingTop: 14 }, tokenRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 }, token: { backgroundColor: "#F8FAFC", borderColor: "#D1DCE9", borderRadius: 18, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7 }, tokenText: { color: "#354B69", fontSize: 13 },
-  channelCount: { backgroundColor: "#EAF2FF", borderRadius: 7, paddingHorizontal: 12, paddingVertical: 7 }, channelCountText: { color: colors.primary, fontSize: 14, fontWeight: "700" }, channel: { alignItems: "flex-start", borderColor: "#DCE5EF", borderRadius: 13, borderWidth: 1, flexDirection: "row", gap: 12, marginTop: 16, padding: 17 }, channelWarning: { borderColor: "#FFD36B" }, channelDot: { backgroundColor: "#10B981", borderRadius: 5, height: 10, marginTop: 4, width: 10 }, channelDotWarning: { backgroundColor: "#F59E0B" }, channelCopy: { flex: 1 }, channelTitle: { color: ink, fontSize: 15, fontWeight: "800" }, channelMeta: { color: muted, fontSize: 14, marginTop: 11 }, channelLatency: { color: "#059669", fontSize: 13, marginTop: 10 }, warningText: { color: "#D97706" }, channelOn: { borderColor: "#CBD8E7", borderRadius: 4, borderWidth: 1, color: "#4C6685", fontSize: 13, paddingHorizontal: 9, paddingVertical: 5 },
+  channelCount: { backgroundColor: "#EAF2FF", borderRadius: 7, paddingHorizontal: 12, paddingVertical: 7 }, channelCountText: { color: colors.primary, fontSize: 14, fontWeight: "700" }, channel: { alignItems: "flex-start", borderColor: "#DCE5EF", borderRadius: 13, borderWidth: 1, flexDirection: "row", gap: 12, marginTop: 16, padding: 17 }, channelSelected: { backgroundColor: "#F0FDF9", borderColor: "#10B981" }, channelDot: { backgroundColor: "#10B981", borderRadius: 5, height: 10, marginTop: 4, width: 10 }, channelDotOff: { backgroundColor: "#B9C5D3" }, channelCopy: { flex: 1 }, channelTitle: { color: ink, fontSize: 15, fontWeight: "800" }, channelMeta: { color: muted, fontSize: 14, marginTop: 11 }, channelLatency: { color: "#059669", fontSize: 13, marginTop: 10 }, channelOn: { borderColor: "#CBD8E7", borderRadius: 4, borderWidth: 1, color: "#4C6685", fontSize: 13, paddingHorizontal: 9, paddingVertical: 5 },
   issuingBar: { alignItems: "center", backgroundColor: "#FFF9EB", borderColor: "#FBBF24", borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 14, minHeight: 68, paddingHorizontal: 20 }, issuingDot: { backgroundColor: "#F59E0B", borderRadius: 7, height: 14, width: 14 }, issuingText: { color: "#4A2515", flex: 1, fontSize: 15, fontWeight: "700" }, cancelButton: { borderColor: "#F2B900", borderRadius: 6, borderWidth: 1, paddingHorizontal: 17, paddingVertical: 9 }, cancelText: { color: "#8A341E", fontSize: 14, fontWeight: "800" },
   reviewColumns: { flexDirection: "row", gap: 30 }, reviewCard: { backgroundColor: colors.white, borderColor: "#D9E2EC", borderRadius: 14, borderWidth: 1, flex: 1, minWidth: 300, padding: 26 }, reviewHeader: { alignItems: "center", borderBottomColor: "#E5ECF4", borderBottomWidth: 1, flexDirection: "row", gap: 12, paddingBottom: 18 }, reviewTitle: { color: ink, fontSize: 18, fontWeight: "800", lineHeight: 26 }, readyPill: { alignItems: "center", borderColor: "#6EE7B7", borderRadius: 20, flexDirection: "row", gap: 7, marginLeft: "auto", paddingHorizontal: 12, paddingVertical: 8 }, readyDot: { backgroundColor: "#10B981", borderRadius: 5, height: 9, width: 9 }, readyText: { color: "#047857", fontSize: 15, fontWeight: "800" }, broadcastId: { backgroundColor: "#EFF6FF", borderColor: "#A7CBFF", borderRadius: 5, borderWidth: 1, padding: 8 }, broadcastIdText: { color: colors.primary, fontFamily: "monospace", fontSize: 16, lineHeight: 23 }, reviewRows: { marginTop: 14 }, reviewRow: { alignItems: "center", borderBottomColor: "#EDF1F5", borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 40 }, reviewLabel: { color: muted, fontSize: 14 }, reviewValue: { color: ink, fontSize: 14, fontWeight: "700" }, reviewDanger: { color: colors.red }, reviewMono: { fontFamily: "monospace", fontWeight: "400" }, reviewSection: { color: "#8FA3BF", fontSize: 18, fontWeight: "800", letterSpacing: 1, marginTop: 22 }, areaBox: { backgroundColor: "#F8FAFC", borderRadius: 10, gap: 8, marginTop: 12, padding: 14 }, areaLine: { color: "#354C6A", fontSize: 13, lineHeight: 18 }, extentRow: { flexDirection: "row", gap: 10, marginTop: 12 }, extentBox: { backgroundColor: "#F8FAFC", borderColor: "#E1E8F0", borderRadius: 8, borderWidth: 1, flex: 1, padding: 13 }, extentDanger: { backgroundColor: "#FFF8F7", borderColor: "#FFB4B3", borderRadius: 8, borderWidth: 1, flex: 1, padding: 13 }, extentLabel: { color: muted, fontSize: 13 }, extentValue: { color: ink, fontSize: 15, fontWeight: "800", marginTop: 6 }, extentLabelDanger: { color: colors.red, fontSize: 13 }, extentValueDanger: { color: colors.red, fontSize: 15, fontWeight: "800", lineHeight: 19, marginTop: 6 },
   previewHeader: { alignItems: "center", borderBottomColor: "#E5ECF4", borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 18 }, emergencyPill: { backgroundColor: "#FFE1E0", borderColor: "#FFB1AE", borderRadius: 28, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 8 }, emergencyText: { color: colors.red, fontSize: 16, fontWeight: "800", lineHeight: 20 }, messagePreview: { backgroundColor: "#F8FAFC", borderColor: "#DCE5EF", borderRadius: 13, marginTop: 20, padding: 20 }, messageIcon: { alignItems: "center", backgroundColor: colors.red, borderRadius: 4, height: 29, justifyContent: "center", width: 29 }, messageTitle: { color: ink, fontSize: 20, fontWeight: "800", lineHeight: 27, marginTop: -31, paddingLeft: 43 }, messageBody: { color: "#1A2E4B", fontSize: 15, lineHeight: 24, marginTop: 22 }, tagDivider: { borderTopColor: "#DCE5EF", borderTopWidth: 1, marginTop: 14 }, previewTag: { alignSelf: "flex-start", backgroundColor: "#E5EBF2", borderRadius: 4, color: "#334C6D", fontSize: 14, marginTop: 8, paddingHorizontal: 9, paddingVertical: 5 }, behaviourBox: { backgroundColor: "#F0F7FF", borderColor: "#B9D6FF", borderRadius: 9, marginTop: 20, padding: 15 }, behaviourTitle: { color: "#163C8D", fontSize: 14, fontWeight: "800" }, behaviourText: { color: muted, fontSize: 14, lineHeight: 20, marginTop: 8 },
