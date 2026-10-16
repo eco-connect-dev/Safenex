@@ -8,14 +8,16 @@ import {
   MapPin,
   ShieldAlert,
 } from "lucide-react-native";
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Icon } from "@/src/components/ui";
 import { DmcWebShell } from "@/src/components/web/DmcWebShell";
 import { colors } from "@/src/theme";
+import { getActiveHazards, saveWarning, type HazardRecord } from "@/src/features/hazard-assessment/api/hazards";
+import { supabase } from "@/lib/supabase";
 
 const navy = "#0E172B";
 const ink = "#0B1424";
@@ -24,6 +26,10 @@ const page = "#F3F6FA";
 
 export function AffectedAreaScreen() {
   const [modified, setModified] = useState(false);
+  const [hazard, setHazard] = useState<HazardRecord | null>(null);
+  useEffect(() => {
+    getActiveHazards().then((items) => setHazard(items[0] ?? null)).catch(() => setHazard(null));
+  }, []);
 
   return (
     <WorkflowShell activeStep={2}>
@@ -34,8 +40,8 @@ export function AffectedAreaScreen() {
       <Steps activeStep={2} />
       <AlertBar>
         <Text style={styles.alertCopy}>
-          <Text style={styles.alertStrong}>Live flood hazard polyline:</Text>{" "}
-          14,890 ha inundation corridor. Crest surge +2.40m over danger level at station 5801.
+          <Text style={styles.alertStrong}>Active hazard from Supabase:</Text>{" "}
+          {hazard ? `${hazard.title} · ${hazard.description}` : "Loading active hazards…"}
         </Text>
       </AlertBar>
 
@@ -52,16 +58,16 @@ export function AffectedAreaScreen() {
           </View>
           <View style={styles.formGrid}>
             <Field label="COVERAGE TYPE" value="River basin" dropdown />
-            <Field label="BASIN NAME" value="Sungai Muda Basin" />
-            <Field label="DISTRICT / TERRITORY" value="Kedah / Pulau Pinang" dropdown full />
-            <Field label="LATITUDE (°N)" value="5.5840" mono />
-            <Field label="LONGITUDE (°E)" value="100.4280" mono />
+            <Field label="HAZARD" value={hazard?.title ?? "Loading…"} />
+            <Field label="DISTRICT / TERRITORY" value={hazard?.district ?? "—"} dropdown full />
+            <Field label="LATITUDE (°N)" value={hazard?.latitude.toFixed(4) ?? "—"} mono />
+            <Field label="LONGITUDE (°E)" value={hazard?.longitude.toFixed(4) ?? "—"} mono />
           </View>
           <Text style={styles.helperMono}>Coordinate reference system: WGS 84 / UTM zone 47N</Text>
           <Field label="WARNING RADIUS (BUFFER ZONE)" value="14.8                 km" />
           <View style={styles.locked}>
             <Icon color={muted} icon={LockKeyhole} size={17} />
-            <Text style={styles.lockedText}>Geo-fence locked: <Text style={styles.bold}>428.5 km²</Text> · Updated automatically via telemetry</Text>
+            <Text style={styles.lockedText}>Affected area: <Text style={styles.bold}>{hazard?.location ?? "—"}</Text> · Hazard type: {hazard?.hazard_type ?? "—"}</Text>
           </View>
         </View>
 
@@ -69,33 +75,33 @@ export function AffectedAreaScreen() {
           <View style={styles.triageRow}>
             <View>
               <View style={styles.criticalPill}><Text style={styles.criticalPillText}>Critical triage</Text></View>
-              <Text style={styles.basinTitle}>Sungai Muda River Basin</Text>
-              <Text style={styles.cardSubtitle}>Kedah / Pulau Pinang Inter-State Drainage Corridor</Text>
+              <Text style={styles.basinTitle}>{hazard?.title ?? "Active hazard"}</Text>
+              <Text style={styles.cardSubtitle}>{hazard ? `${hazard.district} · ${hazard.severity.toUpperCase()} severity` : "Hazard details load from Supabase"}</Text>
             </View>
             <View style={styles.buildingIcon}><Icon color={colors.primary} icon={MapPin} size={24} /></View>
           </View>
           <View style={styles.statRow}>
-            <Stat label="CATCHMENT AREA" value="428.5" suffix="km²" />
-            <Stat label="THREATENED SETTLEMENTS" value="18" suffix="zones" />
+            <Stat label="HAZARD TYPE" value={hazard?.hazard_type ?? "—"} suffix="" />
+            <Stat label="PEOPLE AFFECTED" value={hazard?.affected_people.toLocaleString() ?? "—"} suffix="people" />
           </View>
           <View style={styles.exposed}>
             <Text style={styles.exposedLabel}>TOTAL RESIDENTS EXPOSED IN POLYGON</Text>
-            <Text style={styles.exposedValue}>34,200 <Text style={styles.exposedUnit}>citizens</Text></Text>
-            <Text style={styles.exposedHint}>Based on latest National Registry GIS overlay buffer</Text>
+            <Text style={styles.exposedValue}>{hazard?.affected_people.toLocaleString() ?? "—"} <Text style={styles.exposedUnit}>people</Text></Text>
+            <Text style={styles.exposedHint}>{hazard?.location ?? "Affected area"}, {hazard?.district ?? ""}</Text>
           </View>
           <View style={styles.successBox}>
             <View style={styles.successMark}><Icon color={colors.white} icon={Check} size={14} /></View>
-            <Text style={styles.successText}><Text style={styles.bold}>GIS Boundary Verified:</Text> Boundary certification validated against Department of Irrigation & Drainage hydrometric spatial database (Cap 1.2 format).</Text>
+            <Text style={styles.successText}><Text style={styles.bold}>Hazard record loaded:</Text> This location and severity are read from the active hazards table.</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.summaryCard}>
-        <View style={styles.summaryHeader}><Text style={styles.sectionTitle}>FLOOD HAZARD SPATIAL SUMMARY</Text><Text style={styles.sync}>Sync: 14 sec ago</Text></View>
+        <View style={styles.summaryHeader}><Text style={styles.sectionTitle}>DATABASE HAZARD SUMMARY</Text><Text style={styles.sync}>{hazard ? `Observed ${new Date(hazard.observed_at).toLocaleString()}` : "Loading"}</Text></View>
         <View style={[styles.summaryRow, styles.responsiveWrap]}>
-          <Summary icon={AlertTriangle} title="INUNDATION CORRIDOR" value="14,890 ha inundation corridor" hint="Primary flood plane flow" tone="red" />
-          <Summary icon={BarChart3} title="CREST SURGE" value="+2.40 m over danger level" hint="Gauge Station 5801" tone="amber" />
-          <Summary icon={MapPin} title="PINNED DATUM" value="5.5840° N, 100.4280° E" hint="WGS 84 / Standard Ellipsoid" tone="blue" />
+          <Summary icon={AlertTriangle} title="HAZARD" value={hazard?.title ?? "No active hazard"} hint={hazard?.description ?? "Check Supabase connection"} tone="red" />
+          <Summary icon={BarChart3} title="SEVERITY" value={hazard?.severity.toUpperCase() ?? "—"} hint={`${hazard?.affected_people.toLocaleString() ?? "0"} people potentially affected`} tone="amber" />
+          <Summary icon={MapPin} title="LOCATION" value={hazard?.location ?? "—"} hint={hazard ? `${hazard.latitude.toFixed(4)}, ${hazard.longitude.toFixed(4)} · ${hazard.district}` : "WGS 84 coordinates"} tone="blue" />
         </View>
       </View>
       <BottomBar button="Prepare warning" onPress={() => router.push("/web/prepare-warning" as never)} />
@@ -106,6 +112,37 @@ export function AffectedAreaScreen() {
 export function PrepareWarningScreen() {
   const [tier, setTier] = useState(3);
   const [language, setLanguage] = useState("EN · English");
+  const [message, setMessage] = useState("Severe flooding is expected. Move to higher ground immediately and follow official protection instructions.");
+  const [hazard, setHazard] = useState<HazardRecord | null>(null);
+  const [hazardError, setHazardError] = useState("");
+  const [draftMessage, setDraftMessage] = useState("");
+  const [savingDraft, setSavingDraft] = useState(false);
+  useEffect(() => {
+    getActiveHazards().then((items) => setHazard(items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
+  }, []);
+  const saveDraft = async () => {
+    if (!hazard) return;
+    setSavingDraft(true);
+    setDraftMessage("");
+    try {
+      await saveWarning({
+        hazard_id: hazard.id,
+        tier,
+        title: `${hazard.title} — draft`,
+        message,
+        language: language.startsWith("BM") ? "bm" : "en",
+        status: "draft",
+        target_location: `${hazard.location}, ${hazard.district}`,
+        affected_people: hazard.affected_people,
+        channels: ["push", "sms", "siren"],
+      });
+      setDraftMessage("Draft saved to Supabase.");
+    } catch (error) {
+      setDraftMessage(error instanceof Error ? error.message : "Could not save the draft.");
+    } finally {
+      setSavingDraft(false);
+    }
+  };
 
   return (
     <WorkflowShell activeStep={3}>
@@ -115,8 +152,9 @@ export function PrepareWarningScreen() {
       />
       <Steps activeStep={3} />
       <AlertBar>
-        <Text style={styles.alertCopy}>Sungai Muda Basin Flash Flood Inundation　·　High hazard　·　Target zone: Kedah / Penang interface　·　12,430 registered citizens</Text>
+        <Text style={styles.alertCopy}>{hazardError || (hazard ? `${hazard.title} · ${hazard.severity.toUpperCase()} hazard · ${hazard.location}, ${hazard.district} · ${hazard.affected_people.toLocaleString()} people potentially affected` : "No active hazards are available in the database.")}</Text>
       </AlertBar>
+      {draftMessage ? <Text style={styles.helperMono}>{draftMessage}</Text> : null}
 
       <View style={[styles.card, styles.responsiveCard]}>
         <Text style={styles.sectionHeading}>Select warning tier</Text>
@@ -140,7 +178,8 @@ export function PrepareWarningScreen() {
           <Text style={styles.inputLabel}>Emergency message body</Text>
           <TextInput
             multiline
-            defaultValue="Severe flooding is expected in {basin_name}. Move to higher ground immediately and follow official protection instructions at {evacuation_centre}. Hotline: {hotline}."
+            value={message}
+            onChangeText={setMessage}
             style={styles.messageInput}
           />
           <View style={styles.progressTrack}><View style={styles.progressFill} /></View>
@@ -155,13 +194,51 @@ export function PrepareWarningScreen() {
           <Channel title="Audible siren override" copy="6 sirens online · RF over-the-air" latency="2.1 s gateway latency · Degradation watch" warning />
         </View>
       </View>
-      <BottomBar button="Review warning" onPress={() => router.push("/web/review-authorize" as never)} />
+      <BottomBar button="Review warning" saveLabel={savingDraft ? "Saving…" : "Save draft"} onSave={() => void saveDraft()} onPress={() => router.push({ pathname: "/web/review-authorize", params: { tier: String(tier), message, language: language.startsWith("BM") ? "bm" : "en" } } as never)} />
     </WorkflowShell>
   );
 }
 
 export function ReviewAuthorizeScreen() {
-  const [issuing, setIssuing] = useState(true);
+  const params = useLocalSearchParams<{ tier?: string; message?: string; language?: string }>();
+  const warningTier = Math.min(3, Math.max(1, Number(params.tier) || 3));
+  const [issuing, setIssuing] = useState(false);
+  const [hazard, setHazard] = useState<HazardRecord | null>(null);
+  const [hazardError, setHazardError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message] = useState(typeof params.message === "string" ? params.message : "Severe flooding is expected. Move to higher ground immediately and follow official protection instructions.");
+  useEffect(() => {
+    getActiveHazards().then((items) => setHazard(items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
+  }, []);
+  const persistWarning = async (status: "draft" | "issued") => {
+    if (!hazard) {
+      setActionMessage(hazardError || "No active hazard was found. Apply the Supabase migration and try again.");
+      return;
+    }
+    setSaving(true);
+    setActionMessage("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await saveWarning({
+        hazard_id: hazard.id,
+        tier: warningTier,
+        title: `${hazard.title} — ${status === "issued" ? "warning" : "draft"}`,
+        message,
+        language: params.language === "bm" ? "bm" : "en",
+        status,
+        target_location: `${hazard.location}, ${hazard.district}`,
+        affected_people: hazard.affected_people,
+        channels: ["push", "sms", "siren"],
+        ...(status === "issued" ? { issued_by: user?.id ?? null, issued_at: new Date().toISOString() } : {}),
+      });
+      setActionMessage(status === "issued" ? "Warning issued and saved to Supabase." : "Warning draft saved to Supabase.");
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Could not save the warning.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <WorkflowShell activeStep={4}>
@@ -171,17 +248,15 @@ export function ReviewAuthorizeScreen() {
       />
       <Steps activeStep={4} />
       <AlertBar>
-        <Text style={styles.alertCopy}>
+          <Text style={styles.alertCopy}>
           <Text style={styles.alertStrong}>Warning level: Urgent Hazard Alert</Text>
-          {" · "}Level 1 Red · High severity protocol active across Sungai Muda Catchment
+          {" · "}{hazardError || (hazard ? `${hazard.severity.toUpperCase()} · ${hazard.title} · ${hazard.location}, ${hazard.district}` : "Loading active hazard from Supabase…")}
         </Text>
       </AlertBar>
       <View style={styles.issuingBar}>
         <View style={styles.issuingDot} />
         <Text style={styles.issuingText}>
-          {issuing
-            ? "Issuing in 10s... Automatic broadcast triggering across all configured gateways"
-            : "Issuance paused. Review changes before confirming."}
+          {issuing ? "Saving warning to Supabase…" : actionMessage || "Review the warning, then save a draft or issue it."}
         </Text>
         <Pressable onPress={() => setIssuing(false)} style={styles.cancelButton}>
           <Text style={styles.cancelText}>Cancel</Text>
@@ -196,24 +271,24 @@ export function ReviewAuthorizeScreen() {
             <View style={styles.broadcastId}><Text style={styles.broadcastIdText}>#FL-{"\n"}2025-{"\n"}042</Text></View>
           </View>
           <View style={styles.reviewRows}>
-            <ReviewRow label="Hazard" value="Riverine Flash Flood" />
-            <ReviewRow danger label="Severity" value="5/5 High critical" />
-            <ReviewRow label="Targeted basin" value="Sungai Muda Basin" />
-            <ReviewRow label="Registered citizens" value="12,430" />
-            <ReviewRow label="Issuing officer" value="Capt. R. Vance" />
-            <ReviewRow label="Sync time" mono value="09:41:22 UTC" />
+            <ReviewRow label="Hazard" value={hazard?.title ?? "Loading…"} />
+            <ReviewRow danger label="Severity" value={hazard?.severity.toUpperCase() ?? "—"} />
+            <ReviewRow label="Target area" value={hazard ? `${hazard.location}, ${hazard.district}` : "—"} />
+            <ReviewRow label="People potentially affected" value={hazard?.affected_people.toLocaleString() ?? "—"} />
+            <ReviewRow label="Issuing officer" value="Signed-in user" />
+            <ReviewRow label="Observed" mono value={hazard ? new Date(hazard.observed_at).toLocaleString() : "—"} />
           </View>
           <Text style={styles.reviewSection}>AREA SUMMARY</Text>
           <View style={styles.areaBox}>
-            <Text style={styles.areaLine}><Text style={styles.bold}>Coverage type:</Text> River basin</Text>
-            <Text style={styles.areaLine}><Text style={styles.bold}>District:</Text> Kedah / Pulau Pinang</Text>
-            <Text style={styles.areaLine}><Text style={styles.bold}>Coordinates:</Text> 5.5840°N, 100.4280°E</Text>
-            <Text style={styles.areaLine}><Text style={styles.bold}>Radius / Catchment:</Text> 14.8 km / 428.5 km²</Text>
+            <Text style={styles.areaLine}><Text style={styles.bold}>Hazard type:</Text> {hazard?.hazard_type ?? "—"}</Text>
+            <Text style={styles.areaLine}><Text style={styles.bold}>District:</Text> {hazard?.district ?? "—"}</Text>
+            <Text style={styles.areaLine}><Text style={styles.bold}>Coordinates:</Text> {hazard ? `${hazard.latitude.toFixed(4)}°N, ${hazard.longitude.toFixed(4)}°E` : "—"}</Text>
+            <Text style={styles.areaLine}><Text style={styles.bold}>Description:</Text> {hazard?.description ?? "—"}</Text>
           </View>
           <Text style={styles.reviewSection}>HAZARD EXTENT</Text>
           <View style={styles.extentRow}>
-            <View style={styles.extentBox}><Text style={styles.extentLabel}>Flood extent</Text><Text style={styles.extentValue}>14,890 ha</Text></View>
-            <View style={styles.extentDanger}><Text style={styles.extentLabelDanger}>Crest surge</Text><Text style={styles.extentValueDanger}>+2.40 m over{"\n"}danger</Text></View>
+            <View style={styles.extentBox}><Text style={styles.extentLabel}>Hazard type</Text><Text style={styles.extentValue}>{hazard?.hazard_type ?? "—"}</Text></View>
+            <View style={styles.extentDanger}><Text style={styles.extentLabelDanger}>Severity</Text><Text style={styles.extentValueDanger}>{hazard?.severity.toUpperCase() ?? "—"}</Text></View>
           </View>
         </View>
 
@@ -224,8 +299,8 @@ export function ReviewAuthorizeScreen() {
           </View>
           <View style={styles.messagePreview}>
             <View style={styles.messageIcon}><Icon color={colors.white} icon={ShieldAlert} size={17} /></View>
-            <Text style={styles.messageTitle}>Severe Flooding{"\n"}Expected</Text>
-            <Text style={styles.messageBody}>Severe flooding is expected in Sungai Muda Basin. Move to higher ground immediately and follow official protection instructions.</Text>
+            <Text style={styles.messageTitle}>{hazard?.title ?? "Hazard warning"}</Text>
+            <Text style={styles.messageBody}>{message}</Text>
             <View style={styles.tagDivider} />
             <Text style={styles.previewTag}>Lock-screen override</Text>
             <Text style={styles.previewTag}>Geo-targeted alert</Text>
@@ -243,7 +318,7 @@ export function ReviewAuthorizeScreen() {
           </View>
           <View style={styles.terminal}>
             <View style={styles.terminalTop}><Text style={styles.terminalLabel}>TERMINAL BROADCAST{"\n"}BUFFER</Text><Text style={styles.encoded}>ENCODED</Text></View>
-            <Text style={styles.terminalText}>[GOV-ALERT / DMC MALAYSIA]{"\n"}CRITICAL FLOOD EVACUATION{"\n"}NOTICE for Sungai Muda Basin.{"\n"}Water levels rising rapidly.{"\n"}Move to nearest evacuation{"\n"}shelter immediately. Dial 999{"\n"}for emergency rescue{"\n"}assistance.</Text>
+            <Text style={styles.terminalText}>[SAFENEX / DMC SRI LANKA]{"\n"}{hazard?.title.toUpperCase() ?? "HAZARD ALERT"}{"\n"}{hazard?.location ?? "Affected area"}, {hazard?.district ?? ""}.{"\n"}{message}</Text>
           </View>
           <View style={styles.payloadBox}>
             <Payload label="Sender" value="GOV-ALERT" />
@@ -254,10 +329,10 @@ export function ReviewAuthorizeScreen() {
         </View>
       </View>
       <View style={[styles.authorizationBar, styles.responsiveWrap]}>
-        <Pressable style={styles.saveButton}><Text style={styles.saveText}>Save as draft</Text></Pressable>
+        <Pressable disabled={saving} onPress={() => void persistWarning("draft")} style={styles.saveButton}><Text style={styles.saveText}>{saving ? "Saving…" : "Save as draft"}</Text></Pressable>
         <Pressable><Text style={styles.editParameters}>Edit parameters</Text></Pressable>
         <Text style={styles.keyRequired}>REQUIRES COMMANDER KEY</Text>
-        <Pressable onPress={() => setIssuing(true)} style={styles.confirmButton}><Text style={styles.primaryText}>Confirm &amp; issue warning</Text><Icon color={colors.white} icon={ChevronRight} size={18} /></Pressable>
+        <Pressable disabled={saving || !hazard} onPress={() => { setIssuing(true); void persistWarning("issued").finally(() => setIssuing(false)); }} style={styles.confirmButton}><Text style={styles.primaryText}>{saving ? "Saving…" : "Confirm & issue warning"}</Text><Icon color={colors.white} icon={ChevronRight} size={18} /></Pressable>
       </View>
     </WorkflowShell>
   );
@@ -278,7 +353,7 @@ function Channel({ title, copy, latency, warning = false }: { title: string; cop
 function Token({ text }: { text: string }) { return <View style={styles.token}><Text style={styles.tokenText}>{text}</Text></View>; }
 function ReviewRow({ danger = false, label, mono = false, value }: { danger?: boolean; label: string; mono?: boolean; value: string }) { return <View style={styles.reviewRow}><Text style={styles.reviewLabel}>{label}</Text><Text style={[styles.reviewValue, danger && styles.reviewDanger, mono && styles.reviewMono]}>{value}</Text></View>; }
 function Payload({ danger = false, label, value }: { danger?: boolean; label: string; value: string }) { return <View style={styles.payloadRow}><Text style={styles.payloadLabel}>{label}</Text><Text style={[styles.payloadValue, danger && styles.reviewDanger]}>{value}</Text></View>; }
-function BottomBar({ button, onPress }: { button: string; onPress: () => void }) { return <View style={[styles.bottomBar, styles.responsiveWrap]}><Pressable style={styles.saveButton}><Text style={styles.saveText}>Save draft</Text></Pressable><Text style={styles.bottomHint}>Target audience: <Text style={styles.bold}>12,430 citizens</Text>　·　Back to affected area available</Text><Pressable onPress={onPress} style={styles.primaryButton}><Text style={styles.primaryText}>{button}</Text><Icon color={colors.white} icon={ChevronRight} size={18} /></Pressable></View>; }
+function BottomBar({ button, onPress, onSave, saveLabel = "Save draft" }: { button: string; onPress: () => void; onSave?: () => void; saveLabel?: string }) { return <View style={[styles.bottomBar, styles.responsiveWrap]}>{onSave ? <Pressable onPress={onSave} style={styles.saveButton}><Text style={styles.saveText}>{saveLabel}</Text></Pressable> : null}<Text style={styles.bottomHint}>Target audience: <Text style={styles.bold}>Database hazard count</Text>　·　Back to affected area available</Text><Pressable onPress={onPress} style={styles.primaryButton}><Text style={styles.primaryText}>{button}</Text><Icon color={colors.white} icon={ChevronRight} size={18} /></Pressable></View>; }
 
 const styles = StyleSheet.create({
   responsiveWrap: { flexWrap: "wrap" },
