@@ -38,6 +38,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Safenex uses your photos to attach evidence to a hazard report.",
+          "cameraPermission": "Safenex uses your camera to capture hazard report evidence.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {
