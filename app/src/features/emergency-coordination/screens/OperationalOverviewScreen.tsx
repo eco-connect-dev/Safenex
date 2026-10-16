@@ -1,7 +1,7 @@
 import { router, type Href } from "expo-router";
 import { ArrowRight, CheckCircle2, Info } from "lucide-react-native";
 import { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { Button, Card, Icon } from "@/src/components/ui";
 import { colors, radii, spacing, typography } from "@/src/theme";
@@ -27,14 +27,16 @@ export function OperationalOverviewScreen() {
     const reliefAllocated = (event?.reliefItemsAllocated ?? 1200) + reliefAllocations.reduce((total, item) => total + item.quantity, 0);
 
     const activities = useMemo<Activity[]>(() => {
+        const allocations = getReliefAllocations();
+        const dispatches = getRescueDispatches();
         const operational: Activity[] = [
-            ...reliefAllocations.map((allocation) => ({ id: allocation.id, time: new Date(allocation.allocatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: `${allocation.quantity.toLocaleString()} ${allocation.resource.toLowerCase()} allocated · ${allocation.organisation} → ${allocation.location}`, status: "Recorded", sort: Date.parse(allocation.allocatedAt) })),
-            ...rescueDispatches.map((dispatch) => ({ id: `${dispatch.teamId}-${dispatch.dispatchedAt}`, time: new Date(dispatch.dispatchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: `${dispatch.teamId} dispatched → ${dispatch.targetLocation}`, status: "Dispatched", sort: Date.parse(dispatch.dispatchedAt) })),
+            ...allocations.map((allocation) => ({ id: allocation.id, time: new Date(allocation.allocatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: `${allocation.quantity.toLocaleString()} ${allocation.resource.toLowerCase()} allocated · ${allocation.organisation} → ${allocation.location}`, status: "Recorded", sort: Date.parse(allocation.allocatedAt) })),
+            ...dispatches.map((dispatch) => ({ id: `${dispatch.teamId}-${dispatch.dispatchedAt}`, time: new Date(dispatch.dispatchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: `${dispatch.teamId} dispatched → ${dispatch.targetLocation}`, status: "Dispatched", sort: Date.parse(dispatch.dispatchedAt) })),
             ...(data?.updates ?? []).slice(0, 4).map((update) => ({ id: update.id, time: new Date(update.occurredAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: update.text, status: update.status, sort: Date.parse(update.occurredAt) })),
             { id: "shelter-occupancy", time: "12:30", activity: "Shelter occupancy updated · District data refreshed", status: "Updated", sort: 0 },
         ];
-        return operational.sort((a, b) => b.sort - a.sort).slice(0, 6);
-    }, [data?.updates, reliefAllocations, rescueDispatches]);
+        return [...operational].sort((a, b) => b.sort - a.sort).slice(0, 6);
+    }, [data?.updates]);
 
     const metrics = [
         { label: "Shelters active", value: totalActiveShelters || event?.sheltersActive || 6 },
