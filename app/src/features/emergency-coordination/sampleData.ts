@@ -16,12 +16,12 @@ export const sampleActiveEmergency: ActiveEmergency = {
         reliefItemsAllocated: 1200,
     },
     locations: [
-        { id: "l1", name: "Galigamuwa", mapX: 26, mapY: 24, isEpicenter: false },
-        { id: "l2", name: "Kegalle", mapX: 34, mapY: 42, isEpicenter: true },
-        { id: "l3", name: "Rambukkana", mapX: 10, mapY: 56, isEpicenter: false },
-        { id: "l4", name: "Mawanella", mapX: 51, mapY: 57, isEpicenter: false },
-        { id: "l5", name: "Ruwanwella", mapX: 13, mapY: 79, isEpicenter: false },
-        { id: "l6", name: "Aranayake", mapX: 43, mapY: 82, isEpicenter: false },
+        { id: "l1", name: "Galigamuwa", mapX: 26, mapY: 24, latitude: 7.2398, longitude: 80.3116, isEpicenter: false },
+        { id: "l2", name: "Kegalle", mapX: 34, mapY: 42, latitude: 7.2523, longitude: 80.3436, isEpicenter: true },
+        { id: "l3", name: "Rambukkana", mapX: 10, mapY: 56, latitude: 7.3164, longitude: 80.3906, isEpicenter: false },
+        { id: "l4", name: "Mawanella", mapX: 51, mapY: 57, latitude: 7.2519, longitude: 80.4453, isEpicenter: false },
+        { id: "l5", name: "Ruwanwella", mapX: 13, mapY: 79, latitude: 7.0427, longitude: 80.2517, isEpicenter: false },
+        { id: "l6", name: "Aranayake", mapX: 43, mapY: 82, latitude: 7.1776, longitude: 80.4572, isEpicenter: false },
     ],
     priorityNeeds: [
         { id: "n1", need: "Shelter capacity required", context: "Immediate evacuation demand", priorityLabel: "340 spaces", focus: "shelters" },

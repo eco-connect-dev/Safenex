@@ -6,6 +6,7 @@ import type {
     EmergencyShelter,
     SheltersResult,
 } from "../types";
+import { coordinatesForPlace } from "../components/operationsMapTypes";
 
 const ALLOW_SAMPLE_FALLBACK = __DEV__;
 
@@ -142,13 +143,20 @@ export async function fetchActiveEmergency(
                 rescueTeamsDeployed: Number(row.rescue_teams_deployed),
                 reliefItemsAllocated: Number(row.relief_items_allocated),
             },
-            locations: (locations.data ?? []).map((l: any) => ({
-                id: l.id,
-                name: l.name,
-                mapX: Number(l.map_x),
-                mapY: Number(l.map_y),
-                isEpicenter: Boolean(l.is_epicenter),
-            })),
+            locations: (locations.data ?? []).map((l: any) => {
+                const fallback = coordinatesForPlace(l.name ?? "Kegalle");
+                const latitude = Number(l.latitude);
+                const longitude = Number(l.longitude);
+                return {
+                    id: l.id,
+                    name: l.name,
+                    mapX: Number(l.map_x),
+                    mapY: Number(l.map_y),
+                    latitude: Number.isFinite(latitude) && latitude !== 0 ? latitude : fallback.latitude,
+                    longitude: Number.isFinite(longitude) && longitude !== 0 ? longitude : fallback.longitude,
+                    isEpicenter: Boolean(l.is_epicenter),
+                };
+            }),
             priorityNeeds: (needs.data ?? []).map((n: any) => ({
                 id: n.id,
                 need: n.need,

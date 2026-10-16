@@ -20,6 +20,8 @@ export type EmergencyLocation = {
     name: string;
     mapX: number;
     mapY: number;
+    latitude: number;
+    longitude: number;
     isEpicenter: boolean;
 };
 

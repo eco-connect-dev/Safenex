@@ -3,93 +3,49 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Card } from "@/src/components/ui";
 import { colors, spacing, typography } from "@/src/theme";
 import type { EmergencyLocation } from "../types";
+import { OperationsMap } from "./OperationsMap";
+import type { OperationsMapFeature } from "./operationsMapTypes";
 
-type Props = {
-    district: string;
-    locations: EmergencyLocation[];
-    selectedId: string | null;
-    onSelect: (id: string | null) => void;
-};
+type Props = { district: string; locations: EmergencyLocation[]; selectedId: string | null; onSelect: (id: string | null) => void };
 
 export function FloodAreaMap({ district, locations, selectedId, onSelect }: Props) {
-    const selected = locations.find((l) => l.id === selectedId);
+    const selected = locations.find((location) => location.id === selectedId);
+    const features: OperationsMapFeature[] = locations.map((location) => ({
+        id: location.id,
+        name: location.name,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        category: location.isEpicenter ? "hazard" : "location",
+        detail: location.isEpicenter ? "Flood epicentre" : `${district} District response location`,
+    }));
 
-    return (
-        <Card style={styles.card} testID="flood-map-card">
-            <Text style={styles.title}>Affected flood area</Text>
-            <View style={styles.map}>
-                <View style={styles.area} />
-                <View style={styles.river} />
-                {locations.map((l) => {
-                    const active = l.id === selectedId;
-                    return (
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`Location ${l.name}`}
-                            key={l.id}
-                            onPress={() => onSelect(active ? null : l.id)}
-                            style={[styles.marker, { left: `${l.mapX}%`, top: `${l.mapY}%` }]}
-                            testID={`map-location-${l.id}`}
-                        >
-                            <View
-                                style={[
-                                    styles.dot,
-                                    { backgroundColor: l.isEpicenter ? colors.red : colors.primary },
-                                    active && styles.dotActive,
-                                ]}
-                            />
-                            <Text style={[styles.markerLabel, active && styles.markerLabelActive]}>
-                                {l.name}
-                            </Text>
-                        </Pressable>
-                    );
-                })}
-                <Text style={styles.caption}>{district} District · Flood affected area</Text>
-            </View>
-            <Text style={styles.hint} testID="map-selection">
-                {selected
-                    ? `Selected: ${selected.name}${selected.isEpicenter ? " (epicentre)" : ""}`
-                    : "Tap a location to focus it."}
-            </Text>
-        </Card>
-    );
+    return <Card style={styles.card} testID="flood-map-card">
+        <Text style={styles.title}>Affected flood area</Text>
+        <OperationsMap features={features} selectedId={selectedId} onSelect={(id) => onSelect(selectedId === id ? null : id)} testID="flood-area-map" />
+        <View style={styles.locations}>
+            {locations.map((location) => <Pressable
+                key={location.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Location ${location.name}`}
+                onPress={() => onSelect(selectedId === location.id ? null : location.id)}
+                style={[styles.locationChip, selectedId === location.id && styles.locationSelected]}
+                testID={`map-location-${location.id}`}
+            ><View style={[styles.dot, { backgroundColor: location.isEpicenter ? colors.red : colors.primary }]} /><Text style={[styles.locationLabel, selectedId === location.id && styles.locationLabelSelected]}>{location.name}</Text></Pressable>)}
+        </View>
+        <Text style={styles.hint} testID="map-selection">{selected ? `Selected: ${selected.name}${selected.isEpicenter ? " (epicentre)" : ""}` : locations.length ? `Interactive map · ${district} District` : "Tap a location to focus it."}</Text>
+        <Text style={styles.attribution}>Map data © OpenStreetMap contributors</Text>
+    </Card>;
 }
 
 const styles = StyleSheet.create({
     card: { flex: 1.5, gap: spacing.md, minWidth: 320 },
     title: { color: colors.text, fontSize: typography.sizes.lg, fontWeight: "700" },
-    map: {
-        backgroundColor: "#E8F0F8",
-        borderRadius: 10,
-        height: 254,
-        overflow: "hidden",
-        position: "relative",
-    },
-    area: {
-        backgroundColor: "#F4F8FC",
-        borderColor: "#C7D5E6",
-        borderRadius: 120,
-        borderWidth: 1.5,
-        bottom: 22,
-        left: 10,
-        position: "absolute",
-        right: 10,
-        top: 10,
-    },
-    river: {
-        backgroundColor: "#8DB8D8",
-        height: 3,
-        left: -20,
-        position: "absolute",
-        right: -20,
-        top: "74%",
-        transform: [{ rotate: "-6deg" }],
-    },
-    marker: { alignItems: "center", flexDirection: "row", gap: 6, position: "absolute" },
-    dot: { borderRadius: 999, height: 8, width: 8 },
-    dotActive: { borderColor: colors.navy, borderWidth: 2, height: 14, width: 14 },
-    markerLabel: { color: colors.text, fontSize: 11, fontWeight: "600" },
-    markerLabelActive: { color: colors.primary, fontWeight: "800" },
-    caption: { bottom: 6, color: colors.textMuted, fontSize: 10, left: 10, position: "absolute" },
+    locations: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+    locationChip: { alignItems: "center", backgroundColor: colors.background, borderColor: colors.border, borderRadius: 999, borderWidth: 1, flexDirection: "row", gap: 5, paddingHorizontal: spacing.sm, paddingVertical: 5 },
+    locationSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+    dot: { borderRadius: 99, height: 8, width: 8 },
+    locationLabel: { color: colors.textSecondary, fontSize: 10 },
+    locationLabelSelected: { color: colors.primary, fontWeight: "700" },
     hint: { color: colors.textSecondary, fontSize: typography.sizes.xs },
+    attribution: { color: colors.textMuted, fontSize: 9 },
 });

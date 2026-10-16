@@ -9,6 +9,7 @@ module.exports = {
     moduleNameMapper: {
         "^@/(.*)$": "<rootDir>/$1",
         "^lucide-react-native$": "<rootDir>/__mocks__/lucide-react-native.js",
+        "^react-native-maps$": "<rootDir>/__mocks__/react-native-maps.tsx",
     },
 
     clearMocks: true,

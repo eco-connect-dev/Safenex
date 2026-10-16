@@ -236,7 +236,7 @@ describe("ActiveEmergencyScreen", () => {
         fireEvent.press(screen.getByTestId("map-location-l2"));
 
         expect(
-            await screen.findByText("Tap a location to focus it."),
+            await screen.findByText("Interactive map · Kegalle District"),
         ).toBeTruthy();
     });
 
