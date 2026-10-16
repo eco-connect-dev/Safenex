@@ -11,7 +11,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Icon } from "@/src/components/ui";
 import { DmcWebShell } from "@/src/components/web/DmcWebShell";
@@ -25,12 +25,14 @@ const muted = "#5E7595";
 const page = "#F3F6FA";
 
 export function AffectedAreaScreen() {
+  const params = useLocalSearchParams<{ hazardId?: string }>();
+  const requestedHazardId = typeof params.hazardId === "string" ? params.hazardId : undefined;
   const [modified, setModified] = useState(false);
   const [hazard, setHazard] = useState<HazardRecord | null>(null);
   const [hazards, setHazards] = useState<HazardRecord[]>([]);
   useEffect(() => {
-    getActiveHazards().then((items) => { setHazards(items); setHazard(items[0] ?? null); }).catch(() => setHazard(null));
-  }, []);
+    getActiveHazards().then((items) => { setHazards(items); setHazard(items.find((item) => item.id === requestedHazardId) ?? items[0] ?? null); }).catch(() => setHazard(null));
+  }, [requestedHazardId]);
 
   return (
     <WorkflowShell activeStep={2}>
@@ -114,6 +116,7 @@ export function AffectedAreaScreen() {
 
 export function PrepareWarningScreen() {
   const params = useLocalSearchParams<{ hazardId?: string }>();
+  const requestedHazardId = typeof params.hazardId === "string" ? params.hazardId : undefined;
   const [tier, setTier] = useState(3);
   const [language, setLanguage] = useState("EN · English");
   const [channels, setChannels] = useState<string[]>(["push", "sms", "siren"]);
@@ -123,8 +126,8 @@ export function PrepareWarningScreen() {
   const [draftMessage, setDraftMessage] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
   useEffect(() => {
-    getActiveHazards().then((items) => setHazard(items.find((item) => item.id === params.hazardId) ?? items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
-  }, []);
+    getActiveHazards().then((items) => setHazard(items.find((item) => item.id === requestedHazardId) ?? items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
+  }, [requestedHazardId]);
   const saveDraft = async () => {
     if (!hazard) return;
     if (!channels.length) { setDraftMessage("Select at least one distribution channel."); return; }
@@ -209,17 +212,19 @@ export function PrepareWarningScreen() {
 
 export function ReviewAuthorizeScreen() {
   const params = useLocalSearchParams<{ tier?: string; message?: string; language?: string; hazardId?: string; channels?: string }>();
+  const requestedHazardId = typeof params.hazardId === "string" ? params.hazardId : undefined;
   const warningTier = Math.min(3, Math.max(1, Number(params.tier) || 3));
   const selectedChannels = typeof params.channels === "string" ? params.channels.split(",").filter(Boolean) : ["push", "sms", "siren"];
   const [issuing, setIssuing] = useState(false);
   const [hazard, setHazard] = useState<HazardRecord | null>(null);
   const [hazardError, setHazardError] = useState("");
   const [actionMessage, setActionMessage] = useState("");
+  const [successVisible, setSuccessVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message] = useState(typeof params.message === "string" ? params.message : "Severe flooding is expected. Move to higher ground immediately and follow official protection instructions.");
   useEffect(() => {
-    getActiveHazards().then((items) => setHazard(items.find((item) => item.id === params.hazardId) ?? items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
-  }, []);
+    getActiveHazards().then((items) => setHazard(items.find((item) => item.id === requestedHazardId) ?? items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
+  }, [requestedHazardId]);
   const persistWarning = async (status: "draft" | "issued") => {
     if (!hazard) {
       setActionMessage(hazardError || "No active hazard was found. Apply the Supabase migration and try again.");
@@ -246,6 +251,7 @@ export function ReviewAuthorizeScreen() {
         ...(status === "issued" ? { issued_by: user?.id ?? null, issued_at: new Date().toISOString() } : {}),
       });
       setActionMessage(status === "issued" ? "Warning issued and saved to Supabase." : "Warning draft saved to Supabase.");
+      if (status === "issued") setSuccessVisible(true);
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Could not save the warning.");
     } finally {
@@ -254,6 +260,7 @@ export function ReviewAuthorizeScreen() {
   };
 
   return (
+    <>
     <WorkflowShell activeStep={4}>
       <ScreenHeading
         title="Review & Authorize"
@@ -348,6 +355,17 @@ export function ReviewAuthorizeScreen() {
         <Pressable disabled={saving || !hazard} onPress={() => { setIssuing(true); void persistWarning("issued").finally(() => setIssuing(false)); }} style={styles.confirmButton}><Text style={styles.primaryText}>{saving ? "Saving…" : "Confirm & issue warning"}</Text><Icon color={colors.white} icon={ChevronRight} size={18} /></Pressable>
       </View>
     </WorkflowShell>
+    <Modal transparent visible={successVisible} animationType="fade" onRequestClose={() => setSuccessVisible(false)}>
+      <View style={styles.successOverlay}>
+        <View style={styles.successModal}>
+          <View style={styles.successModalIcon}><Icon color={colors.white} icon={Check} size={24} /></View>
+          <Text style={styles.successModalTitle}>Alert successfully sent</Text>
+          <Text style={styles.successModalCopy}>The alert was submitted and its record was saved successfully.</Text>
+          <Pressable onPress={() => setSuccessVisible(false)} style={styles.confirmButton}><Text style={styles.primaryText}>Done</Text></Pressable>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -399,5 +417,5 @@ const styles = StyleSheet.create({
   issuingBar: { alignItems: "center", backgroundColor: "#FFF9EB", borderColor: "#FBBF24", borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 14, minHeight: 68, paddingHorizontal: 20 }, issuingDot: { backgroundColor: "#F59E0B", borderRadius: 7, height: 14, width: 14 }, issuingText: { color: "#4A2515", flex: 1, fontSize: 15, fontWeight: "700" }, cancelButton: { borderColor: "#F2B900", borderRadius: 6, borderWidth: 1, paddingHorizontal: 17, paddingVertical: 9 }, cancelText: { color: "#8A341E", fontSize: 14, fontWeight: "800" },
   reviewColumns: { flexDirection: "row", gap: 30 }, reviewCard: { backgroundColor: colors.white, borderColor: "#D9E2EC", borderRadius: 14, borderWidth: 1, flex: 1, minWidth: 300, padding: 26 }, reviewHeader: { alignItems: "center", borderBottomColor: "#E5ECF4", borderBottomWidth: 1, flexDirection: "row", gap: 12, paddingBottom: 18 }, reviewTitle: { color: ink, fontSize: 18, fontWeight: "800", lineHeight: 26 }, readyPill: { alignItems: "center", borderColor: "#6EE7B7", borderRadius: 20, flexDirection: "row", gap: 7, marginLeft: "auto", paddingHorizontal: 12, paddingVertical: 8 }, readyDot: { backgroundColor: "#10B981", borderRadius: 5, height: 9, width: 9 }, readyText: { color: "#047857", fontSize: 15, fontWeight: "800" }, broadcastId: { backgroundColor: "#EFF6FF", borderColor: "#A7CBFF", borderRadius: 5, borderWidth: 1, padding: 8 }, broadcastIdText: { color: colors.primary, fontFamily: "monospace", fontSize: 16, lineHeight: 23 }, reviewRows: { marginTop: 14 }, reviewRow: { alignItems: "center", borderBottomColor: "#EDF1F5", borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 40 }, reviewLabel: { color: muted, fontSize: 14 }, reviewValue: { color: ink, fontSize: 14, fontWeight: "700" }, reviewDanger: { color: colors.red }, reviewMono: { fontFamily: "monospace", fontWeight: "400" }, reviewSection: { color: "#8FA3BF", fontSize: 18, fontWeight: "800", letterSpacing: 1, marginTop: 22 }, areaBox: { backgroundColor: "#F8FAFC", borderRadius: 10, gap: 8, marginTop: 12, padding: 14 }, areaLine: { color: "#354C6A", fontSize: 13, lineHeight: 18 }, extentRow: { flexDirection: "row", gap: 10, marginTop: 12 }, extentBox: { backgroundColor: "#F8FAFC", borderColor: "#E1E8F0", borderRadius: 8, borderWidth: 1, flex: 1, padding: 13 }, extentDanger: { backgroundColor: "#FFF8F7", borderColor: "#FFB4B3", borderRadius: 8, borderWidth: 1, flex: 1, padding: 13 }, extentLabel: { color: muted, fontSize: 13 }, extentValue: { color: ink, fontSize: 15, fontWeight: "800", marginTop: 6 }, extentLabelDanger: { color: colors.red, fontSize: 13 }, extentValueDanger: { color: colors.red, fontSize: 15, fontWeight: "800", lineHeight: 19, marginTop: 6 },
   previewHeader: { alignItems: "center", borderBottomColor: "#E5ECF4", borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 18 }, emergencyPill: { backgroundColor: "#FFE1E0", borderColor: "#FFB1AE", borderRadius: 28, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 8 }, emergencyText: { color: colors.red, fontSize: 16, fontWeight: "800", lineHeight: 20 }, messagePreview: { backgroundColor: "#F8FAFC", borderColor: "#DCE5EF", borderRadius: 13, marginTop: 20, padding: 20 }, messageIcon: { alignItems: "center", backgroundColor: colors.red, borderRadius: 4, height: 29, justifyContent: "center", width: 29 }, messageTitle: { color: ink, fontSize: 20, fontWeight: "800", lineHeight: 27, marginTop: -31, paddingLeft: 43 }, messageBody: { color: "#1A2E4B", fontSize: 15, lineHeight: 24, marginTop: 22 }, tagDivider: { borderTopColor: "#DCE5EF", borderTopWidth: 1, marginTop: 14 }, previewTag: { alignSelf: "flex-start", backgroundColor: "#E5EBF2", borderRadius: 4, color: "#334C6D", fontSize: 14, marginTop: 8, paddingHorizontal: 9, paddingVertical: 5 }, behaviourBox: { backgroundColor: "#F0F7FF", borderColor: "#B9D6FF", borderRadius: 9, marginTop: 20, padding: 15 }, behaviourTitle: { color: "#163C8D", fontSize: 14, fontWeight: "800" }, behaviourText: { color: muted, fontSize: 14, lineHeight: 20, marginTop: 8 },
-  channelBadge: { backgroundColor: "#EEF3F8", borderColor: "#D9E3EE", borderRadius: 5, borderWidth: 1, padding: 10 }, channelBadgeText: { color: "#203652", fontSize: 16, fontWeight: "800", lineHeight: 23 }, terminal: { backgroundColor: "#0D162A", borderRadius: 13, marginTop: 20, padding: 20 }, terminalTop: { borderBottomColor: "#26334A", borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 14 }, terminalLabel: { color: "#A8B7CE", fontFamily: "monospace", fontSize: 13, lineHeight: 19 }, encoded: { color: "#10D99B", fontFamily: "monospace", fontSize: 13, fontWeight: "800" }, terminalText: { color: "#F5F7FB", fontFamily: "monospace", fontSize: 14, lineHeight: 24, marginTop: 16 }, payloadBox: { backgroundColor: "#F8FAFC", borderRadius: 9, gap: 13, marginTop: 20, padding: 16 }, payloadRow: { flexDirection: "row", justifyContent: "space-between" }, payloadLabel: { color: muted, fontSize: 14 }, payloadValue: { color: ink, fontFamily: "monospace", fontSize: 14, fontWeight: "700" }, authorizationBar: { alignItems: "center", backgroundColor: colors.white, borderTopColor: "#D9E2EC", borderTopWidth: 1, bottom: 0, flexDirection: "row", gap: 20, minHeight: 80, paddingHorizontal: 40, position: "absolute", width: "100%" }, editParameters: { color: colors.primary, fontSize: 14, textDecorationLine: "underline" }, keyRequired: { color: "#91A3BA", flex: 1, fontFamily: "monospace", fontSize: 18, textAlign: "right" }, confirmButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 8, flexDirection: "row", gap: 10, justifyContent: "center", minWidth: 255, paddingHorizontal: 20, paddingVertical: 14 },
+  channelBadge: { backgroundColor: "#EEF3F8", borderColor: "#D9E3EE", borderRadius: 5, borderWidth: 1, padding: 10 }, channelBadgeText: { color: "#203652", fontSize: 16, fontWeight: "800", lineHeight: 23 }, terminal: { backgroundColor: "#0D162A", borderRadius: 13, marginTop: 20, padding: 20 }, terminalTop: { borderBottomColor: "#26334A", borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 14 }, terminalLabel: { color: "#A8B7CE", fontFamily: "monospace", fontSize: 13, lineHeight: 19 }, encoded: { color: "#10D99B", fontFamily: "monospace", fontSize: 13, fontWeight: "800" }, terminalText: { color: "#F5F7FB", fontFamily: "monospace", fontSize: 14, lineHeight: 24, marginTop: 16 }, payloadBox: { backgroundColor: "#F8FAFC", borderRadius: 9, gap: 13, marginTop: 20, padding: 16 }, payloadRow: { flexDirection: "row", justifyContent: "space-between" }, payloadLabel: { color: muted, fontSize: 14 }, payloadValue: { color: ink, fontFamily: "monospace", fontSize: 14, fontWeight: "700" }, authorizationBar: { alignItems: "center", backgroundColor: colors.white, borderTopColor: "#D9E2EC", borderTopWidth: 1, bottom: 0, flexDirection: "row", gap: 20, minHeight: 80, paddingHorizontal: 40, position: "absolute", width: "100%" }, editParameters: { color: colors.primary, fontSize: 14, textDecorationLine: "underline" }, keyRequired: { color: "#91A3BA", flex: 1, fontFamily: "monospace", fontSize: 18, textAlign: "right" }, confirmButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 8, flexDirection: "row", gap: 10, justifyContent: "center", minWidth: 255, paddingHorizontal: 20, paddingVertical: 14 }, successOverlay: { alignItems: "center", backgroundColor: "rgba(10, 20, 38, 0.55)", flex: 1, justifyContent: "center", padding: 24 }, successModal: { alignItems: "center", backgroundColor: colors.white, borderRadius: 16, maxWidth: 420, padding: 30, width: "100%" }, successModalIcon: { alignItems: "center", backgroundColor: "#10B981", borderRadius: 28, height: 56, justifyContent: "center", width: 56 }, successModalTitle: { color: ink, fontSize: 21, fontWeight: "800", marginTop: 16 }, successModalCopy: { color: muted, fontSize: 14, lineHeight: 21, marginBottom: 20, marginTop: 8, textAlign: "center" },
 });

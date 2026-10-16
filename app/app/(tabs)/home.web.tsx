@@ -1,467 +1,173 @@
-import {
-  AlertTriangle,
-  ChevronRight,
-  Info,
-  Radio,
-} from "lucide-react-native";
+import { AlertTriangle, Check, ChevronRight, Droplets, MapPin, Mountain, Radio } from "lucide-react-native";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Svg, { Circle, Line, Polyline } from "react-native-svg";
 
-import { colors } from "@/src/theme";
 import { Icon } from "@/src/components/ui";
 import { DmcWebShell } from "@/src/components/web/DmcWebShell";
+import { colors } from "@/src/theme";
+import { getActiveHazards, getHazardReadings, type HazardReading, type HazardRecord } from "@/src/features/hazard-assessment/api/hazards";
 
-const navyText = "#0C1424";
-const mutedBlue = "#607797";
-const paleBackground = "#F1F5F9";
+const ink = "#0C1424";
+const muted = "#607797";
 
 export default function WebHomeScreen() {
+  const [hazards, setHazards] = useState<HazardRecord[]>([]);
+  const [selected, setSelected] = useState<HazardRecord | null>(null);
+  const [readings, setReadings] = useState<HazardReading[]>([]);
+  const [error, setError] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
-  const [step, setStep] = useState(1);
+
+  useEffect(() => {
+    const refresh = () => getActiveHazards().then((items) => {
+      setHazards(items);
+      setSelected((current) => current ? items.find((item) => item.id === current.id) ?? items[0] ?? null : items[0] ?? null);
+      setError("");
+    }).catch((cause: Error) => setError(cause.message));
+    void refresh();
+    const timer = setInterval(refresh, 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!selected) { setReadings([]); return; }
+    const refresh = () => getHazardReadings(selected.id).then(setReadings).catch(() => setReadings([]));
+    void refresh();
+    const timer = setInterval(refresh, 30_000);
+    return () => clearInterval(timer);
+  }, [selected?.id]);
+
+  const continueWithHazard = () => {
+    if (selected) router.push({ pathname: "/web/affected-area", params: { hazardId: selected.id } } as never);
+  };
 
   return (
     <DmcWebShell>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.heading}>
-            <Text style={styles.title}>Assess Active Hazard</Text>
-            <Text style={styles.subtitle}>
-              Review sensor evidence and hydrological thresholds before
-              selecting warning area.
-            </Text>
-          </View>
-
-          <View style={[styles.steps, styles.responsiveWrap]}>
-            <StepCard
-              active={step === 1}
-              label="Assess hazard"
-              number="1"
-              onPress={() => setStep(1)}
-            />
-            <StepCard
-              active={step === 2}
-              label="Select affected area"
-              number="2"
-              onPress={() => router.push("/web/affected-area" as never)}
-            />
-            <StepCard
-              active={step === 3}
-              label="Prepare warning"
-              number="3"
-              onPress={() => router.push("/web/prepare-warning" as never)}
-            />
-            <StepCard
-              active={step === 4}
-              label="Review & authorize"
-              number="4"
-              onPress={() => router.push("/web/review-authorize" as never)}
-            />
-          </View>
-
-          {!acknowledged ? (
-            <View style={[styles.criticalNotice, styles.responsiveWrap]}>
-              <View style={styles.noticeIcon}>
-                <Icon color={colors.red} icon={AlertTriangle} size={19} />
-              </View>
-              <Text style={styles.noticeText}>
-                <Text style={styles.noticeStrong}>Critical threshold exceeded</Text>
-                {" · "}Sensor RS-04 breached the emergency spillway barrier
-                stage in Northern Sector. Verified 6 min ago.
-              </Text>
-              <Pressable
-                onPress={() => setAcknowledged(true)}
-                style={({ pressed }) => [
-                  styles.outlineButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.outlineButtonText}>Acknowledge</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.acknowledgedNotice}>
-              <Icon color={colors.green} icon={Radio} size={18} />
-              <Text style={styles.acknowledgedText}>
-                Event acknowledged and added to command activity log.
-              </Text>
-            </View>
-          )}
-
-          <View style={[styles.panels, styles.responsiveWrap]}>
-            <HazardPanel />
-            <ForecastPanel />
-          </View>
-
-          <View style={styles.evidenceCard}>
-            <View>
-              <Text style={styles.cardTitle}>Basin Sensor Evidence Table</Text>
-              <Text style={styles.cardSubtitle}>
-                Latest telemetry received from the northern catchment network.
-              </Text>
-            </View>
-            <View style={styles.evidenceRow}>
-              <Text style={styles.evidenceLabel}>RS-04</Text>
-              <Text style={styles.evidenceValue}>4.85 m water level</Text>
-              <Text style={styles.evidenceStatus}>CRITICAL</Text>
-            </View>
-          </View>
-        </ScrollView>
-
-        <View style={[styles.actionBar, styles.responsiveWrap]}>
-          <Pressable
-            onPress={() => setAcknowledged(true)}
-            style={({ pressed }) => [
-              styles.bottomOutlineButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.bottomOutlineText}>Acknowledge event</Text>
-          </Pressable>
-          <Text style={styles.syncText}>
-            ⌘ + Enter　· Continuous acoustic relay active · Latency 12 ms ·
-            Next sync in 8 seconds
-          </Text>
-          <Pressable
-            onPress={() => setStep(Math.min(step + 1, 4))}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.primaryButtonText}>
-              {step === 4 ? "Review & authorize" : "Assess hazard & select area"}
-            </Text>
-            <Icon color={colors.white} icon={ChevronRight} size={18} />
-          </Pressable>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.heading}>
+          <Text style={styles.title}>Assess Active Hazards</Text>
+          <Text style={styles.subtitle}>Monitor reported hazards and select one to prepare a warning.</Text>
         </View>
+
+        <View style={styles.steps}>
+          <Step number="1" title="Assess hazards" active />
+          <Step number="2" title="Select affected area" />
+          <Step number="3" title="Prepare warning" />
+          <Step number="4" title="Review & authorize" />
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Currently reported hazards</Text>
+              <Text style={styles.sectionSubtitle}>{hazards.length} active hazard{hazards.length === 1 ? "" : "s"} from the hazards database</Text>
+            </View>
+            <View style={styles.count}><Text style={styles.countText}>{hazards.length} ACTIVE</Text></View>
+          </View>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {hazards.length === 0 && !error ? <Text style={styles.empty}>Loading hazards or no active hazards are reported.</Text> : null}
+          <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.hazardSlider}>
+            {hazards.map((hazard) => {
+              const active = selected?.id === hazard.id;
+              const HazardIcon = hazard.hazard_type === "landslide" ? Mountain : hazard.hazard_type === "flood" ? Droplets : AlertTriangle;
+              return (
+                <Pressable key={hazard.id} onPress={() => setSelected(hazard)} style={[styles.hazardCard, active && styles.hazardCardSelected]}>
+                  <View style={[styles.hazardIcon, hazard.severity === "critical" || hazard.severity === "high" ? styles.dangerIcon : styles.normalIcon]}><Icon color={hazard.severity === "critical" || hazard.severity === "high" ? "#B42323" : colors.primary} icon={HazardIcon} size={20} /></View>
+                  <View style={styles.hazardCopy}>
+                    <Text style={styles.hazardTitle}>{hazard.title}</Text>
+                    <Text style={styles.hazardMeta}>{hazard.location} · {hazard.district} · {hazard.hazard_type}</Text>
+                    <Text style={styles.hazardDescription} numberOfLines={2}>{hazard.description}</Text>
+                  </View>
+                  <View style={styles.hazardMetrics}>
+                    <Text style={styles.severity}>{hazard.severity.toUpperCase()}</Text>
+                    {hazard.water_level_m !== null ? <Text style={styles.metric}>{hazard.water_level_m.toFixed(2)} m water</Text> : null}
+                    {hazard.slope_displacement_mm !== null ? <Text style={styles.metric}>{hazard.slope_displacement_mm.toFixed(1)} mm movement</Text> : null}
+                    <Text style={styles.metric}>{hazard.affected_people.toLocaleString()} people</Text>
+                  </View>
+                  {active ? <Icon color={colors.primary} icon={Check} size={20} /> : null}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {selected ? <HazardChart hazard={selected} readings={readings} /> : null}
+
+        <View style={styles.notice}>
+          <Icon color={acknowledged ? colors.green : colors.red} icon={acknowledged ? Radio : AlertTriangle} size={19} />
+          <Text style={styles.noticeText}>{acknowledged ? "Selected hazard acknowledged." : selected ? `${selected.severity.toUpperCase()} · ${selected.title} · ${selected.location}, ${selected.district}` : "Select a reported hazard to review monitoring data."}</Text>
+          <Pressable onPress={() => setAcknowledged(!acknowledged)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>{acknowledged ? "Undo" : "Acknowledge"}</Text></Pressable>
+        </View>
+      </ScrollView>
+      <View style={styles.actionBar}>
+        <View style={styles.selectedSummary}><Icon color={muted} icon={MapPin} size={17} /><Text style={styles.footerText}>{selected ? `Selected: ${selected.title}` : "Select a hazard to continue"}</Text></View>
+        <Pressable disabled={!selected} onPress={continueWithHazard} style={[styles.continueButton, !selected && styles.disabledButton]}>
+          <Text style={styles.continueText}>Continue with selected hazard</Text><Icon color={colors.white} icon={ChevronRight} size={18} />
+        </Pressable>
+      </View>
     </DmcWebShell>
   );
 }
 
-function StepCard({
-  active,
-  label,
-  number,
-  onPress,
-}: {
-  active: boolean;
-  label: string;
-  number: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.stepCard,
-        active && styles.stepCardActive,
-        pressed && styles.pressed,
-      ]}
-    >
-      <Text style={[styles.stepNumber, active && styles.stepActiveText]}>
-        STEP {number}
-      </Text>
-      <Text style={[styles.stepLabel, active && styles.stepActiveText]}>
-        {label}
-      </Text>
-      {active ? <View style={styles.stepDot} /> : null}
-    </Pressable>
-  );
+function Step({ number, title, active = false }: { number: string; title: string; active?: boolean }) {
+  return <View style={[styles.step, active && styles.stepActive]}><Text style={[styles.stepNumber, active && styles.stepNumberActive]}>STEP {number}</Text><Text style={[styles.stepTitle, active && styles.stepTitleActive]}>{title}</Text></View>;
 }
 
-function HazardPanel() {
+function HazardChart({ hazard, readings }: { hazard: HazardRecord; readings: HazardReading[] }) {
+  const isLandslide = hazard.hazard_type === "landslide";
+  const isFlood = hazard.hazard_type === "flood";
+  const chartTitle = isFlood ? "Water Level Trend & Forecast" : isLandslide ? "Slope Movement Trend" : "Rainfall Trend & Forecast";
+  const metricLabel = isFlood ? "Water level (m)" : isLandslide ? "Slope displacement (mm)" : "Rainfall (mm/hr)";
+  const points = readings.slice(-6).map((point) => ({
+    id: point.id,
+    recorded_at: point.recorded_at,
+    value: isFlood ? point.water_level_m : isLandslide ? point.slope_displacement_mm : point.rainfall_mm_hr,
+  })).filter((point): point is typeof point & { value: number } => point.value !== null);
+  const currentValue = isFlood ? hazard.water_level_m : isLandslide ? hazard.slope_displacement_mm : hazard.rainfall_mm_hr;
+  if (currentValue !== null && !points.some((point) => point.value === currentValue)) {
+    points.push({ id: `${hazard.id}-current`, recorded_at: hazard.observed_at, value: currentValue });
+  }
+  const chartMax = Math.max(1, ...points.map((point) => point.value)) * 1.15;
+  const coordinates = points.map((point, index) => {
+    const x = points.length <= 1 ? 370 : 20 + index * (350 / (points.length - 1));
+    const y = 145 - point.value / chartMax * 125;
+    return { x, y, point };
+  });
+  const polyline = coordinates.map(({ x, y }) => `${x},${y}`).join(" ");
+  const lastCoordinate = coordinates[coordinates.length - 1];
+
   return (
-    <View style={[styles.panel, styles.hazardPanel]}>
-      <View style={styles.badgeRow}>
-        <View style={styles.criticalBadge}>
-          <View style={styles.badgeDot} />
-          <Text style={styles.criticalBadgeText}>High critical</Text>
-        </View>
-        <View style={styles.confidenceBadge}>
-          <Text style={styles.confidenceText}>Confidence 99.4%</Text>
-        </View>
-      </View>
-      <Text style={styles.hazardTitle}>Riverine Flash Flood</Text>
-      <Text style={styles.hazardSubtitle}>
-        Sungai Muda Sub-Catchment Basin · Kedah Delta Interface
-      </Text>
-
-      <View style={styles.levelBox}>
-        <View style={styles.levelScale}>
-          <View style={styles.scaleBar}>
-            <View style={styles.scaleRed} />
-            <View style={styles.scaleAmber} />
-            <View style={styles.scaleGreen} />
-          </View>
-          <View style={styles.scaleLabels}>
-            <Text style={styles.redText}>5.00m</Text>
-            <Text style={styles.amberText}>4.50m</Text>
-            <Text style={styles.datumText}>0.00m · Datum{"\n"}base</Text>
-          </View>
-        </View>
-        <View style={styles.levelDivider} />
-        <View style={styles.currentLevel}>
-          <Text style={styles.overline}>ACTIVE SENSOR WATER LEVEL</Text>
-          <Text style={styles.levelValue}>
-            4.85<Text style={styles.levelUnit}> m</Text>
-          </Text>
-          <View style={styles.thresholdCallout}>
-            <Text style={styles.thresholdText}>↑ +0.35 m above danger{"\n"}threshold</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.detailsGrid}>
-        <Detail label="Sensor / Logged" value="RS-04 · 14:32 MYT" />
-        <Detail label="Danger / Crest Threshold" value="4.50 m / 5.00 m" />
-        <Detail label="River Flow Rate" value="820 m³/s (+35% surge)" accent />
-        <Detail label="Rainfall / Soil Saturation" value="92 mm/hr · 94.2%" />
-      </View>
-      <View style={styles.panelFooter}>
-        <Text style={styles.footerMeta}>Sungai Muda Pier · Torrential rainfall band · Runoff peak</Text>
-        <Text style={styles.footerMeta}>RS4-HYD-998</Text>
-      </View>
-    </View>
-  );
-}
-
-function Detail({
-  accent = false,
-  label,
-  value,
-}: {
-  accent?: boolean;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.detail}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={[styles.detailValue, accent && styles.detailAccent]}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function ForecastPanel() {
-  return (
-    <View style={[styles.panel, styles.forecastPanel]}>
-      <Text style={styles.cardTitle}>Water Level Trend &amp; Forecast</Text>
+    <View style={styles.chartCard}>
+      <Text style={styles.sectionTitle}>{chartTitle}</Text>
       <View style={styles.chartLegendRow}>
-        <Text style={styles.chartSubtitle}>
-          Water level (m) · Sensor RS-04 · Last 6 hours and predictive model
-        </Text>
-        <View style={styles.legend}>
-          <Text style={styles.legendBlue}>━</Text>
-          <Text style={styles.legendText}>Recorded</Text>
-          <Text style={styles.legendRed}>━</Text>
-          <Text style={styles.legendText}>Forecast</Text>
-        </View>
+        <Text style={styles.chartSubtitle}>{metricLabel} · {hazard.title} · Latest readings</Text>
+        <View style={styles.legend}><Text style={styles.legendBlue}>━</Text><Text style={styles.legendText}>Recorded</Text><Text style={styles.legendRed}>●</Text><Text style={styles.legendText}>Current</Text></View>
       </View>
-
       <View style={styles.chart}>
-        <View style={[styles.thresholdLine, styles.crestLine]}>
-          <Text style={styles.chartThresholdRed}>Crest: 5.00m</Text>
-        </View>
-        <View style={[styles.thresholdLine, styles.dangerLine]}>
-          <Text style={styles.chartThresholdAmber}>Danger: 4.50m</Text>
-        </View>
-        <View style={styles.forecastShade} />
-        <View style={styles.chartGridOne} />
-        <View style={styles.chartGridTwo} />
-        <View style={styles.trendLine}>
-          <View style={[styles.trendSegment, { left: 4, top: 102, width: 68, transform: [{ rotate: "-10deg" }] }]} />
-          <View style={[styles.trendSegment, { left: 68, top: 90, width: 78, transform: [{ rotate: "-18deg" }] }]} />
-          <View style={[styles.trendSegment, { left: 142, top: 66, width: 82, transform: [{ rotate: "-25deg" }] }]} />
-          <View style={[styles.trendSegment, { left: 218, top: 30, width: 84, transform: [{ rotate: "-31deg" }] }]} />
-          <View style={[styles.trendSegment, { left: 296, top: 0, width: 72, transform: [{ rotate: "-17deg" }] }]} />
-          <View style={styles.currentPoint} />
-          <View style={styles.forecastPoint} />
-        </View>
-        <Text style={[styles.chartTime, { left: 0 }]}>08:00</Text>
-        <Text style={[styles.chartTime, { left: "18%" }]}>10:00</Text>
-        <Text style={[styles.chartTime, { left: "38%" }]}>11:00</Text>
-        <Text style={[styles.chartTime, { left: "58%" }]}>12:00</Text>
-        <Text style={[styles.chartTime, styles.nowTime]}>14:00 (Now)</Text>
-        <Text style={[styles.chartTime, styles.plusTime]}>+45m</Text>
+        <View style={styles.chartGridOne} /><View style={styles.chartGridTwo} />
+        {coordinates.length > 1 ? <Svg pointerEvents="none" style={styles.chartSvg} viewBox="0 0 400 160" preserveAspectRatio="none">
+          <Line x1="0" y1="40" x2="400" y2="40" stroke="#DFE7F0" strokeWidth="1" />
+          <Line x1="0" y1="95" x2="400" y2="95" stroke="#DFE7F0" strokeWidth="1" />
+          <Polyline points={polyline} fill="none" stroke={colors.primary} strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
+          <Circle cx={coordinates[coordinates.length - 1].x} cy={coordinates[coordinates.length - 1].y} r="7" fill={colors.red} stroke="#FFB2AF" strokeWidth="3" />
+        </Svg> : <Text style={styles.empty}>No monitoring readings are available for this hazard.</Text>}
+        <Text style={[styles.chartTime, { left: 0 }]}>{coordinates[0] ? new Date(coordinates[0].point.recorded_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</Text>
+        <Text style={[styles.chartTime, styles.nowTime]}>{lastCoordinate ? `${lastCoordinate.point.value.toFixed(2)} ${isFlood ? "m" : isLandslide ? "mm" : "mm/hr"} · now` : ""}</Text>
       </View>
-
       <View style={styles.forecastNotice}>
-        <Icon color={colors.red} icon={Info} size={16} />
-        <Text style={styles.forecastNoticeText}>
-          <Text style={styles.noticeStrong}>Forecast: 4.95m crest within 45 minutes</Text>
-          {" · "}Critical rapid rise: +0.82 m in 2 hours across northern
-          catchment dykes.
-        </Text>
-      </View>
-
-      <View style={styles.decision}>
-        <Text style={styles.overline}>ASSESSMENT DECISION</Text>
-        <View style={styles.decisionRow}>
-          <Pressable style={styles.primaryDecision}>
-            <Text style={styles.primaryDecisionText}>Assess hazard &amp; select{"\n"}area</Text>
-            <Icon color={colors.white} icon={ChevronRight} size={17} />
-          </Pressable>
-          <Pressable style={styles.secondaryDecision}>
-            <Text style={styles.secondaryDecisionText}>No escalation</Text>
-          </Pressable>
-          <Pressable>
-            <Text style={styles.keepPending}>Keep pending</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.decisionHint}>
-          Every operational action is hashed &amp; synchronized to state command logs automatically.
-        </Text>
+        <Icon color={isFlood || isLandslide ? colors.red : colors.primary} icon={isFlood || isLandslide ? AlertTriangle : Droplets} size={16} />
+        <Text style={styles.forecastNoticeText}><Text style={styles.noticeStrong}>{isFlood ? `Current water level: ${hazard.water_level_m?.toFixed(2) ?? "—"} m` : isLandslide ? `Current slope movement: ${hazard.slope_displacement_mm?.toFixed(1) ?? "—"} mm` : `Current rainfall: ${hazard.rainfall_mm_hr?.toFixed(1) ?? "—"} mm/hr`}</Text>{hazard.rainfall_mm_hr !== null ? ` · Rainfall ${hazard.rainfall_mm_hr.toFixed(1)} mm/hr.` : ""} Readings are loaded from Supabase.</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  responsiveWrap: { flexWrap: "wrap" },
-  screen: { backgroundColor: paleBackground, flex: 1, flexDirection: "row" },
-  sidebar: {
-    backgroundColor: "#0E172B",
-    justifyContent: "space-between",
-    paddingBottom: 22,
-    paddingHorizontal: 15,
-    paddingTop: 20,
-    width: 320,
-  },
-  content: { flex: 1, minWidth: 0 },
-  brandRow: { alignItems: "center", flexDirection: "row", gap: 14, paddingHorizontal: 15 },
-  brandMark: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderColor: "#6F9BFF",
-    borderRadius: 5,
-    borderWidth: 1,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
-  },
-  brandMarkText: { color: colors.white, fontSize: 16, fontWeight: "800" },
-  brand: { color: colors.white, fontSize: 22, fontWeight: "800" },
-  nav: { gap: 8, marginTop: 48 },
-  navItem: { alignItems: "center", borderRadius: 9, flexDirection: "row", gap: 16, paddingHorizontal: 16, paddingVertical: 14 },
-  navItemSelected: { backgroundColor: "#1D2B42" },
-  navLabel: { color: "#9AAAC2", fontSize: 17 },
-  navLabelSelected: { color: colors.white, fontWeight: "800" },
-  sidebarFooter: { gap: 4, paddingHorizontal: 5 },
-  footerTitle: { color: colors.white, fontSize: 14 },
-  footerText: { color: "#8292AA", fontSize: 14 },
-  connected: { color: "#1EE7A2", fontSize: 14, marginTop: 17 },
-  topbar: { alignItems: "center", backgroundColor: colors.white, borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", height: 80, justifyContent: "space-between", paddingHorizontal: 38 },
-  topbarTitle: { color: navyText, fontSize: 18 },
-  profile: { alignItems: "center", flexDirection: "row", gap: 16 },
-  profileCopy: { alignItems: "flex-end" },
-  profileName: { color: navyText, fontSize: 18, fontWeight: "800" },
-  profileRole: { color: mutedBlue, fontSize: 14 },
-  avatar: { alignItems: "center", backgroundColor: "#E6ECF5", borderColor: "#CAD5E5", borderRadius: 24, borderWidth: 1, height: 46, justifyContent: "center", width: 46 },
-  avatarText: { color: "#20334E", fontSize: 14, fontWeight: "700" },
-  scrollContent: { gap: 30, padding: 40, paddingBottom: 130 },
-  heading: { gap: 8 },
-  title: { color: navyText, fontSize: 30, fontWeight: "800" },
-  subtitle: { color: mutedBlue, fontSize: 18 },
-  steps: { flexDirection: "row", gap: 20 },
-  stepCard: { backgroundColor: "#F8FAFC", borderColor: "#DFE6EF", borderRadius: 10, borderWidth: 1, flex: 1, minHeight: 80, paddingHorizontal: 20, paddingVertical: 16 },
-  stepCardActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  stepNumber: { color: "#B2C0D2", fontSize: 15, letterSpacing: 0.3 },
-  stepLabel: { color: "#9DACC0", fontSize: 17, fontWeight: "700", marginTop: 7 },
-  stepActiveText: { color: colors.white },
-  stepDot: { backgroundColor: colors.white, borderRadius: 5, height: 10, position: "absolute", right: 20, top: 21, width: 10 },
-  criticalNotice: { alignItems: "center", backgroundColor: "#FFF4F3", borderColor: "#FFB4B3", borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 16, minHeight: 92, paddingHorizontal: 20 },
-  noticeIcon: { alignItems: "center", backgroundColor: "#FFE1DF", borderRadius: 20, height: 40, justifyContent: "center", width: 40 },
-  noticeText: { color: "#941A1A", flex: 1, fontSize: 16, lineHeight: 24 },
-  noticeStrong: { fontWeight: "800" },
-  outlineButton: { borderColor: "#FF7775", borderRadius: 8, borderWidth: 1, paddingHorizontal: 17, paddingVertical: 10 },
-  outlineButtonText: { color: "#A52323", fontSize: 15, fontWeight: "800" },
-  acknowledgedNotice: { alignItems: "center", backgroundColor: "#ECFDF5", borderColor: "#86EFAC", borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 10, padding: 18 },
-  acknowledgedText: { color: "#047857", fontSize: 15, fontWeight: "700" },
-  panels: { flexDirection: "row", gap: 30 },
-  panel: { backgroundColor: colors.white, borderColor: "#D8E1EC", borderRadius: 15, borderWidth: 1, padding: 30 },
-  hazardPanel: { flex: 1, minWidth: 280 },
-  forecastPanel: { flex: 1, minWidth: 280 },
-  badgeRow: { flexDirection: "row", gap: 10 },
-  criticalBadge: { alignItems: "center", backgroundColor: "#FFE0E1", borderRadius: 20, flexDirection: "row", gap: 7, paddingHorizontal: 14, paddingVertical: 5 },
-  badgeDot: { backgroundColor: colors.red, borderRadius: 5, height: 10, width: 10 },
-  criticalBadgeText: { color: "#C42327", fontSize: 14, fontWeight: "700" },
-  confidenceBadge: { borderColor: "#86B4FF", borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 5 },
-  confidenceText: { color: colors.primary, fontSize: 14, fontWeight: "700" },
-  hazardTitle: { color: navyText, fontSize: 26, fontWeight: "800", marginTop: 16 },
-  hazardSubtitle: { color: mutedBlue, fontSize: 15, marginTop: 5 },
-  levelBox: { alignItems: "center", backgroundColor: "#F8FAFC", borderColor: "#E8EEF5", borderRadius: 14, flexDirection: "row", marginTop: 32, minHeight: 232, padding: 24 },
-  levelScale: { alignItems: "center", flexDirection: "row", gap: 20, width: "43%" },
-  scaleBar: { borderRadius: 15, height: 180, overflow: "hidden", width: 25 },
-  scaleRed: { backgroundColor: "#EF4444", flex: 1 },
-  scaleAmber: { backgroundColor: "#F59E0B", flex: 1 },
-  scaleGreen: { backgroundColor: "#10B981", flex: 2.2 },
-  scaleLabels: { gap: 15 },
-  redText: { color: colors.red, fontSize: 14, fontWeight: "800" },
-  amberText: { color: "#DC7200", fontSize: 14, fontWeight: "800" },
-  datumText: { color: "#8FA3BF", fontSize: 14, marginTop: 40 },
-  levelDivider: { backgroundColor: "#DDE5EE", height: 135, width: 1 },
-  currentLevel: { flex: 1, paddingLeft: 30 },
-  overline: { color: "#627796", fontSize: 14, fontWeight: "800", letterSpacing: 0.8 },
-  levelValue: { color: colors.red, fontSize: 46, fontWeight: "800", marginTop: 10 },
-  levelUnit: { color: "#304865", fontSize: 22 },
-  thresholdCallout: { backgroundColor: "#FFF2F1", borderColor: "#FFB5B3", borderRadius: 6, borderWidth: 1, marginTop: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  thresholdText: { color: "#B42323", fontSize: 14, fontWeight: "800", lineHeight: 20 },
-  detailsGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 22 },
-  detail: { borderBottomColor: "#E5ECF4", borderBottomWidth: 1, minHeight: 68, paddingVertical: 8, width: "50%" },
-  detailLabel: { color: "#8EA3C0", fontSize: 14 },
-  detailValue: { color: navyText, fontSize: 14, fontWeight: "700", marginTop: 5 },
-  detailAccent: { color: colors.red },
-  panelFooter: { borderTopColor: "#E5ECF4", borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", marginTop: 26, paddingTop: 18 },
-  footerMeta: { color: "#879BB6", fontSize: 13 },
-  cardTitle: { color: navyText, fontSize: 21, fontWeight: "800" },
-  cardSubtitle: { color: mutedBlue, fontSize: 14, lineHeight: 20, marginTop: 4 },
-  chartLegendRow: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" },
-  chartSubtitle: { color: mutedBlue, flex: 1, fontSize: 14, lineHeight: 20, marginTop: 3 },
-  legend: { alignItems: "center", flexDirection: "row", gap: 6, paddingTop: 3 },
-  legendBlue: { color: colors.primary, fontSize: 24, lineHeight: 12 },
-  legendRed: { color: colors.red, fontSize: 24, lineHeight: 12, marginLeft: 12 },
-  legendText: { color: "#344A67", fontSize: 14 },
-  chart: { backgroundColor: "#F8FAFC", borderColor: "#E7EDF4", borderRadius: 12, height: 220, marginTop: 21, overflow: "hidden", position: "relative" },
-  thresholdLine: { borderTopWidth: 2, left: 32, position: "absolute", right: 30, top: 35 },
-  crestLine: { borderColor: colors.red, borderStyle: "dashed" },
-  dangerLine: { borderColor: "#F59E0B", borderStyle: "dashed", top: 66 },
-  chartThresholdRed: { color: colors.red, fontSize: 10, left: 4, position: "absolute", top: -17 },
-  chartThresholdAmber: { color: "#DC7200", fontSize: 10, left: 4, position: "absolute", top: 4 },
-  forecastShade: { backgroundColor: "#FFF0EF", bottom: 35, opacity: 0.8, position: "absolute", right: 30, top: 24, width: "22%" },
-  chartGridOne: { backgroundColor: "#DFE7F0", height: 1, left: 30, position: "absolute", right: 30, top: 115 },
-  chartGridTwo: { backgroundColor: "#DFE7F0", height: 1, left: 30, position: "absolute", right: 30, top: 170 },
-  trendLine: { height: 160, left: 30, position: "absolute", top: 23, width: "82%" },
-  trendSegment: { backgroundColor: colors.primary, height: 4, position: "absolute", transformOrigin: "left center" },
-  currentPoint: { backgroundColor: colors.red, borderColor: "#FFB2AF", borderRadius: 9, borderWidth: 4, height: 18, position: "absolute", right: "21%", top: 27, width: 18 },
-  forecastPoint: { backgroundColor: colors.red, borderRadius: 5, height: 10, position: "absolute", right: 1, top: 21, width: 10 },
-  chartTime: { bottom: 16, color: "#91A3BC", fontSize: 10, position: "absolute" },
-  nowTime: { color: navyText, fontWeight: "800", right: "19%" },
-  plusTime: { color: colors.red, fontWeight: "800", right: 31 },
-  forecastNotice: { alignItems: "flex-start", backgroundColor: "#FFF6F5", borderColor: "#FFB8B5", borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 12, marginTop: 20, padding: 17 },
-  forecastNoticeText: { color: "#9C2929", flex: 1, fontSize: 14, lineHeight: 21 },
-  decision: { borderTopColor: "#E6ECF3", borderTopWidth: 1, marginTop: 30, paddingTop: 27 },
-  decisionRow: { alignItems: "center", flexDirection: "row", gap: 16, marginTop: 18 },
-  primaryDecision: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9, flexDirection: "row", flex: 1, justifyContent: "space-between", minHeight: 60, paddingHorizontal: 25 },
-  primaryDecisionText: { color: colors.white, fontSize: 14, fontWeight: "800", lineHeight: 18 },
-  secondaryDecision: { borderColor: "#B7C6D9", borderRadius: 9, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 20 },
-  secondaryDecisionText: { color: "#344A67", fontSize: 14 },
-  keepPending: { color: "#506785", fontSize: 14, textDecorationLine: "underline" },
-  decisionHint: { color: "#8BA0BB", fontSize: 13, lineHeight: 19, marginTop: 13 },
-  evidenceCard: { backgroundColor: colors.white, borderColor: "#D8E1EC", borderRadius: 15, borderWidth: 1, gap: 15, padding: 28 },
-  evidenceRow: { alignItems: "center", borderTopColor: "#E5ECF4", borderTopWidth: 1, flexDirection: "row", gap: 30, paddingTop: 16 },
-  evidenceLabel: { color: navyText, fontSize: 15, fontWeight: "800" },
-  evidenceValue: { color: mutedBlue, fontSize: 14 },
-  evidenceStatus: { color: colors.red, fontSize: 12, fontWeight: "800", marginLeft: "auto" },
-  actionBar: { alignItems: "center", backgroundColor: colors.white, borderTopColor: "#D8E1EC", borderTopWidth: 1, bottom: 0, flexDirection: "row", gap: 22, minHeight: 80, paddingHorizontal: 40, position: "absolute", width: "100%" },
-  bottomOutlineButton: { borderColor: "#B6C7DD", borderRadius: 9, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 12 },
-  bottomOutlineText: { color: "#304866", fontSize: 14, fontWeight: "700" },
-  syncText: { color: "#8CA1BE", flex: 1, fontSize: 14 },
-  primaryButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 9, flexDirection: "row", gap: 10, justifyContent: "center", minWidth: 280, paddingHorizontal: 20, paddingVertical: 14 },
-  primaryButtonText: { color: colors.white, fontSize: 14, fontWeight: "800" },
-  pressed: { opacity: 0.72 },
+  content: { gap: 24, padding: 36, paddingBottom: 130 },
+  heading: { gap: 6 }, title: { color: ink, fontSize: 30, fontWeight: "800" }, subtitle: { color: muted, fontSize: 16 },
+  steps: { flexDirection: "row", flexWrap: "wrap", gap: 12 }, step: { backgroundColor: "#F8FAFC", borderColor: "#DFE6EF", borderRadius: 9, borderWidth: 1, flex: 1, minWidth: 160, padding: 14 }, stepActive: { backgroundColor: "#EFF6FF", borderColor: colors.primary }, stepNumber: { color: "#91A3BA", fontSize: 12, fontWeight: "800" }, stepNumberActive: { color: colors.primary }, stepTitle: { color: muted, fontSize: 14, fontWeight: "700", marginTop: 5 }, stepTitleActive: { color: ink },
+  section: { backgroundColor: colors.white, borderColor: "#D8E1EC", borderRadius: 14, borderWidth: 1, padding: 22 }, sectionHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" }, sectionTitle: { color: ink, fontSize: 20, fontWeight: "800" }, sectionSubtitle: { color: muted, fontSize: 13, marginTop: 5 }, count: { backgroundColor: "#ECFDF5", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 }, countText: { color: "#047857", fontSize: 12, fontWeight: "800" }, hazardSlider: { gap: 12, paddingBottom: 6, paddingTop: 18 }, hazardCard: { alignItems: "center", borderColor: "#E1E8F0", borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 12, height: 128, padding: 14, width: 330 }, hazardCardSelected: { backgroundColor: "#F4F8FF", borderColor: colors.primary, borderWidth: 2 }, hazardIcon: { alignItems: "center", borderRadius: 22, height: 44, justifyContent: "center", width: 44 }, dangerIcon: { backgroundColor: "#FEE2E2" }, normalIcon: { backgroundColor: "#EAF2FF" }, hazardCopy: { flex: 1 }, hazardTitle: { color: ink, fontSize: 14, fontWeight: "800" }, hazardMeta: { color: muted, fontSize: 11, marginTop: 4, textTransform: "capitalize" }, hazardDescription: { color: "#506785", fontSize: 11, lineHeight: 15, marginTop: 5 }, hazardMetrics: { alignItems: "flex-end", gap: 5 }, severity: { color: "#B42323", fontSize: 10, fontWeight: "800" }, metric: { color: "#344A67", fontSize: 10 },
+  chartCard: { backgroundColor: colors.white, borderColor: "#D8E1EC", borderRadius: 15, borderWidth: 1, padding: 30 }, chartLegendRow: { alignItems: "flex-start", flexDirection: "row", justifyContent: "space-between" }, chartSubtitle: { color: muted, flex: 1, fontSize: 14, lineHeight: 20, marginTop: 3 }, legend: { alignItems: "center", flexDirection: "row", gap: 6, paddingTop: 3 }, legendBlue: { color: colors.primary, fontSize: 24, lineHeight: 12 }, legendRed: { color: colors.red, fontSize: 15, marginLeft: 12 }, legendText: { color: "#344A67", fontSize: 13 }, chart: { backgroundColor: "#F8FAFC", borderColor: "#E7EDF4", borderRadius: 12, height: 220, marginTop: 21, overflow: "hidden", position: "relative" }, chartGridOne: { backgroundColor: "#DFE7F0", height: 1, left: 30, position: "absolute", right: 30, top: 75 }, chartGridTwo: { backgroundColor: "#DFE7F0", height: 1, left: 30, position: "absolute", right: 30, top: 130 }, chartSvg: { bottom: 34, left: 30, position: "absolute", right: 30, top: 22 }, chartTime: { bottom: 13, color: "#91A3BC", fontSize: 10, position: "absolute" }, nowTime: { color: ink, fontWeight: "800", right: 12 }, forecastNotice: { alignItems: "flex-start", backgroundColor: "#FFF6F5", borderColor: "#FFB8B5", borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 12, marginTop: 20, padding: 17 }, forecastNoticeText: { color: "#9C2929", flex: 1, fontSize: 14, lineHeight: 21 }, noticeStrong: { fontWeight: "800" },
+  notice: { alignItems: "center", backgroundColor: "#FFF4F3", borderColor: "#FFB4B3", borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 13, padding: 15 }, noticeText: { color: "#8F2626", flex: 1, fontSize: 14 }, secondaryButton: { borderColor: "#E5A4A2", borderRadius: 7, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 9 }, secondaryButtonText: { color: "#8F2626", fontSize: 12, fontWeight: "800" }, error: { color: "#B42323", marginTop: 12 }, empty: { color: muted, fontSize: 13, marginTop: 20 }, actionBar: { alignItems: "center", backgroundColor: colors.white, borderTopColor: "#D8E1EC", borderTopWidth: 1, bottom: 0, flexDirection: "row", gap: 18, minHeight: 76, paddingHorizontal: 32, position: "absolute", width: "100%" }, selectedSummary: { alignItems: "center", flex: 1, flexDirection: "row", gap: 9 }, footerText: { color: muted, fontSize: 13 }, continueButton: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 8, flexDirection: "row", gap: 8, paddingHorizontal: 18, paddingVertical: 13 }, disabledButton: { opacity: 0.5 }, continueText: { color: colors.white, fontSize: 13, fontWeight: "800" },
 });
