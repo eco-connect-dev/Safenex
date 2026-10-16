@@ -6,6 +6,7 @@ export type HazardRecord = {
   title: string;
   description: string;
   severity: "low" | "moderate" | "high" | "critical";
+  review_status: "pending_review" | "accepted" | "rejected";
   location: string;
   district: string;
   affected_people: number;
@@ -32,8 +33,9 @@ export type WarningInput = {
 export async function getActiveHazards() {
   const { data, error } = await supabase
     .from("hazards")
-    .select("id,hazard_type,title,description,severity,location,district,affected_people,water_level_m,rainfall_mm_hr,slope_displacement_mm,observed_at")
+    .select("id,hazard_type,title,description,severity,review_status,location,district,affected_people,water_level_m,rainfall_mm_hr,slope_displacement_mm,observed_at")
     .eq("status", "active")
+    .eq("review_status", "accepted")
     .order("observed_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as HazardRecord[];

@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowRight, Image, Search } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Image as RNImage,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +13,7 @@ import {
 import { Badge, Button, Card, Icon, Notice } from "@/src/components/ui";
 import type { WebRootDrawerParamList } from "@/src/app/navigation/RootNavigator.web";
 import { colors, radii, spacing, typography } from "@/src/theme";
-import { getGroundReport, groundReports } from "../api";
+import { getGroundReport, getGroundReports, updateGroundReport } from "../api";
 import type { GroundReport } from "../types";
 
 type WebNavigation = {
@@ -36,10 +37,20 @@ export function GroundReportsScreen({ navigation }: Props<"GroundReports">) {
   const [hazardFilter, setHazardFilter] = useState("All");
   const [locationFilter, setLocationFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("All");
+  const [reports, setReports] = useState<GroundReport[]>([]);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    getGroundReports()
+      .then((items) => { if (mounted) { setReports(items); setLoadError(""); } })
+      .catch((error: Error) => { if (mounted) setLoadError(error.message); });
+    return () => { mounted = false; };
+  }, []);
 
   const filteredReports = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return groundReports.filter((report) => {
+    return reports.filter((report) => {
       const matchesQuery =
         !normalizedQuery ||
         [report.hazardType, report.location, report.reporter].some((value) =>
@@ -53,20 +64,20 @@ export function GroundReportsScreen({ navigation }: Props<"GroundReports">) {
         matchesQuery && matchesHazard && matchesLocation && dateFilter === "All"
       );
     });
-  }, [dateFilter, hazardFilter, locationFilter, query]);
+  }, [dateFilter, hazardFilter, locationFilter, query, reports]);
 
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.pageContent}>
         <View>
-          <Text style={styles.title}>Pending Reports</Text>
+          <Text style={styles.title}>Citizen Hazard Reports</Text>
           <Text style={styles.subtitle}>
             Review citizen evidence before making a verification decision.
           </Text>
         </View>
 
         <Notice
-          message="4 reports pending verification · Approved reports become available to hazard assessment, not automatic warning escalation."
+          message={`${reports.filter((report) => report.status === "pending_review").length} reports pending verification · Accepted reports become available to hazard assessment.`}
           title="Ground verification queue"
           tone="warning"
         />
@@ -107,6 +118,7 @@ export function GroundReportsScreen({ navigation }: Props<"GroundReports">) {
           </View>
 
           <View style={styles.reportList}>
+            {loadError ? <Text style={styles.error}>{loadError}</Text> : null}
             {filteredReports.map((report) => (
               <ReportListCard
                 key={report.id}
@@ -117,14 +129,14 @@ export function GroundReportsScreen({ navigation }: Props<"GroundReports">) {
               />
             ))}
             {filteredReports.length === 0 ? (
-              <Text style={styles.empty}>
+                <Text style={styles.empty}>
                 No reports match the current filters.
               </Text>
             ) : null}
           </View>
         </Card>
         <Text style={styles.footer}>
-          Showing all {filteredReports.length} pending reports · DMC duty
+          Showing {filteredReports.length} citizen hazard reports · DMC duty
           officer verification queue
         </Text>
       </ScrollView>
@@ -157,21 +169,23 @@ function ReportListCard({
   return (
     <View style={styles.reportRow}>
       <View style={styles.reportThumbnail}>
-        <View style={styles.thumbnailSky} />
-        <View style={styles.thumbnailLand} />
-        <Text style={styles.thumbnailTag}>EVIDENCE PHOTO</Text>
+        {report.imageUrl ? <RNImage resizeMode="cover" source={{ uri: report.imageUrl }} style={styles.reportImage} /> : <>
+          <View style={styles.thumbnailSky} />
+          <View style={styles.thumbnailLand} />
+          <Text style={styles.thumbnailTag}>NO PHOTO</Text>
+        </>}
       </View>
       <View style={styles.reportInfo}>
         <Text style={styles.reportTitle}>
           {report.hazardType} — {report.location}
         </Text>
         <Text style={styles.reportMeta}>
-          Submitted {report.submitted} · {report.relativeTime}
+          {report.title} · {report.severity.toUpperCase()} · {report.affectedPeople.toLocaleString()} people
         </Text>
-        <Text style={styles.reportMeta}>{report.role}</Text>
+        <Text style={styles.reportMeta}>Submitted {report.submitted} · {report.relativeTime} · {report.reporter}</Text>
       </View>
       <View style={styles.reportActions}>
-        <Badge label="Pending" tone="warning" />
+        <Badge label={report.status === "accepted" ? "Accepted" : report.status === "rejected" ? "Rejected" : "Pending review"} tone={report.status === "accepted" ? "success" : report.status === "rejected" ? "danger" : "warning"} />
         <Button
           label="Review report"
           icon={ArrowRight}
@@ -187,16 +201,85 @@ export function VerifyReportScreen({
   navigation,
   route,
 }: Props<"VerifyReport">) {
-  const report = getGroundReport(route.params.reportId);
+  const [report, setReport] = useState<GroundReport | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [notes, setNotes] = useState("");
-  const [decision, setDecision] = useState<"approved" | "rejected" | null>(
-    null,
-  );
+  const [decision, setDecision] = useState<"accepted" | "rejected" | null>(null);
+  const [imageUrl, setImageUrl] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    getGroundReport(route.params.reportId)
+      .then((item) => {
+        if (mounted) {
+          setReport(item);
+          setImageUrl(item?.imageUrl ?? "");
+          setDecision(item?.status === "accepted" || item?.status === "rejected" ? item.status : null);
+          if (!item) setLoadError("This report could not be found.");
+        }
+      })
+      .catch((error: Error) => { if (mounted) setLoadError(error.message); });
+    return () => { mounted = false; };
+  }, [route.params.reportId]);
+
+  const saveImageUrl = async () => {
+    if (!report) return;
+    const trimmedUrl = imageUrl.trim();
+    if (trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)) {
+      setSaveMessage("Enter a valid http or https image URL.");
+      return;
+    }
+    setSaving(true);
+    setSaveMessage("");
+    try {
+      await updateGroundReport(report.id, { imageUrl: trimmedUrl || null });
+      setReport({ ...report, imageUrl: trimmedUrl || null, evidenceLabel: trimmedUrl ? "Hazard site photo" : "No image attached" });
+      setSaveMessage("Image URL saved to Supabase.");
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Could not save the image URL.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveDecision = async (nextDecision: "accepted" | "rejected") => {
+    if (!report) return;
+    setSaving(true);
+    setSaveMessage("");
+    try {
+      await updateGroundReport(report.id, { reviewStatus: nextDecision });
+      setDecision(nextDecision);
+      setReport({ ...report, status: nextDecision });
+      setSaveMessage(`Report ${nextDecision} and saved to Supabase.`);
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Could not save the review decision.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeImage = async () => {
+    if (!report) return;
+    setSaving(true);
+    setSaveMessage("");
+    try {
+      await updateGroundReport(report.id, { imageUrl: null });
+      setImageUrl("");
+      setReport({ ...report, imageUrl: null, evidenceLabel: "No image attached" });
+      setSaveMessage("Image removed.");
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : "Could not remove the image.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!report) {
     return (
       <View style={styles.page}>
-        <Text style={styles.empty}>This report could not be found.</Text>
+        <Text style={styles.empty}>{loadError || "Loading report…"}</Text>
         <Button
           label="Back to pending reports"
           onPress={() => navigation.navigate("GroundReports")}
@@ -214,7 +297,7 @@ export function VerifyReportScreen({
             Review the description and evidence before recording your decision.
           </Text>
         </View>
-        <Badge label="Pending verification" tone="warning" />
+        <Badge label={report.status === "accepted" ? "Accepted" : report.status === "rejected" ? "Rejected" : "Pending review"} tone={report.status === "accepted" ? "success" : report.status === "rejected" ? "danger" : "warning"} />
       </View>
 
       <Card>
@@ -235,15 +318,20 @@ export function VerifyReportScreen({
       <Card>
         <Text style={styles.sectionTitle}>Evidence</Text>
         <View style={styles.largeEvidence}>
-          <View style={styles.thumbnailSky} />
-          <View style={styles.thumbnailLand} />
-          <Text style={styles.thumbnailTag}>
-            {report.evidenceLabel.toUpperCase()}
-          </Text>
-          <View style={styles.imageIcon}>
-            <Icon color={colors.white} icon={Image} size={18} />
-          </View>
+          {report.imageUrl ? <RNImage resizeMode="cover" source={{ uri: report.imageUrl }} style={styles.evidenceImage} /> : <>
+            <View style={styles.thumbnailSky} />
+            <View style={styles.thumbnailLand} />
+            <Text style={styles.thumbnailTag}>{report.evidenceLabel.toUpperCase()}</Text>
+            <View style={styles.imageIcon}><Icon color={colors.white} icon={Image} size={18} /></View>
+          </>}
         </View>
+        <Text style={styles.inputLabel}>Hazard place image URL</Text>
+        <TextInput autoCapitalize="none" autoCorrect={false} keyboardType="url" onChangeText={setImageUrl} placeholder="https://example.com/hazard-photo.jpg" placeholderTextColor={colors.textMuted} style={styles.imageUrlInput} value={imageUrl} />
+        <View style={styles.imageActions}>
+          <Button disabled={saving} label={saving ? "Saving…" : "Save image URL"} onPress={() => void saveImageUrl()} size="sm" />
+          {imageUrl ? <Button disabled={saving} label="Remove image" onPress={() => void removeImage()} size="sm" variant="outline" /> : null}
+        </View>
+        {saveMessage ? <Text style={styles.saveMessage}>{saveMessage}</Text> : null}
       </Card>
 
       <Card>
@@ -263,19 +351,21 @@ export function VerifyReportScreen({
         />
         {decision ? (
           <Notice
-            message={`Report marked ${decision}. This is ready to connect to the verification API.`}
-            tone={decision === "approved" ? "success" : "danger"}
+            message={`Report marked ${decision}.`}
+            tone={decision === "accepted" ? "success" : "danger"}
           />
         ) : null}
         <View style={styles.decisionActions}>
           <Button
             label="Reject report"
-            onPress={() => setDecision("rejected")}
+            disabled={saving}
+            onPress={() => void saveDecision("rejected")}
             variant="outline"
           />
           <Button
-            label="Approve report"
-            onPress={() => setDecision("approved")}
+            label="Accept report"
+            disabled={saving}
+            onPress={() => void saveDecision("accepted")}
           />
         </View>
       </Card>
@@ -383,6 +473,7 @@ const styles = StyleSheet.create({
     position: "relative",
     width: 110,
   },
+  reportImage: { height: "100%", position: "absolute", width: "100%" },
   thumbnailSky: { backgroundColor: "#B8D9E9", flex: 1 },
   thumbnailLand: {
     backgroundColor: "#718052",
@@ -452,6 +543,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative",
   },
+  evidenceImage: { height: "100%", position: "absolute", width: "100%" },
   imageIcon: {
     alignItems: "center",
     backgroundColor: "rgba(15, 23, 42, 0.6)",
@@ -468,6 +560,17 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     marginTop: spacing.lg,
   },
+  imageUrlInput: {
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    color: colors.text,
+    minHeight: 42,
+    paddingHorizontal: spacing.md,
+  },
+  imageActions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
+  saveMessage: { color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: spacing.sm },
+  error: { color: colors.red, fontSize: typography.sizes.sm },
   notes: {
     borderColor: colors.border,
     borderRadius: radii.md,
