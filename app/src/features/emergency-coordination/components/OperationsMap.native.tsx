@@ -6,7 +6,7 @@ import { categoryColor, type OperationsMapFeature } from "./operationsMapTypes";
 
 type Props = { features: OperationsMapFeature[]; selectedId?: string | null; onSelect?: (id: string) => void; testID?: string };
 
-export function OperationsMap({ features, selectedId, onSelect, testID = "operations-map" }: Props) {
+export function OperationsMap({ features, selectedId: _selectedId, onSelect, testID = "operations-map" }: Props) {
     const center = features.length ? {
         latitude: features.reduce((sum, feature) => sum + feature.latitude, 0) / features.length,
         longitude: features.reduce((sum, feature) => sum + feature.longitude, 0) / features.length,

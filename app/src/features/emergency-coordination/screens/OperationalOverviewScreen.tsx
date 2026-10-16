@@ -27,12 +27,16 @@ export function OperationalOverviewScreen() {
     const coordinationShelter = shelters.find((shelter) => shelter.name.includes("Mawanella"));
     const peopleAssisted = 1850 + shelters.reduce((total, shelter) => total + (shelter.currentOccupancy - (shelter.id === "s1" ? 650 : shelter.id === "s2" ? 420 : shelter.id === "s3" ? 500 : shelter.id === "s4" ? 300 : shelter.id === "s5" ? 180 : 350)), 0);
     const reliefAllocated = (event?.reliefItemsAllocated ?? 1200) + reliefAllocations.reduce((total, item) => total + item.quantity, 0);
-    const mapFeatures = useMemo<OperationsMapFeature[]>(() => [
-        ...(data?.locations ?? []).map((location) => ({ id: location.id, name: location.name, latitude: location.latitude, longitude: location.longitude, category: location.isEpicenter ? "hazard" as const : "location" as const, detail: location.isEpicenter ? "Flood epicentre" : "Affected response location" })),
-        ...shelters.map((shelter) => ({ id: `shelter-${shelter.id}`, name: shelter.name, ...coordinatesForPlace(shelter.location), category: "shelter" as const, detail: `${shelter.currentOccupancy.toLocaleString()} / ${shelter.capacity.toLocaleString()} occupants` })),
-        ...rescueDispatches.map((dispatch) => ({ id: `dispatch-${dispatch.teamId}`, name: `${dispatch.teamId} · ${dispatch.targetLocation}`, ...coordinatesForPlace(dispatch.targetLocation), category: "rescue" as const, detail: dispatch.missionDetails })),
-        ...reliefAllocations.map((allocation) => ({ id: allocation.id, name: `${allocation.resource} · ${allocation.location}`, ...coordinatesForPlace(allocation.location), category: "resource" as const, detail: `${allocation.quantity.toLocaleString()} from ${allocation.organisation}` })),
-    ], [data?.locations, shelters, rescueDispatches, reliefAllocations]);
+    const mapFeatures = useMemo<OperationsMapFeature[]>(() => {
+        const dispatches = getRescueDispatches();
+        const allocations = getReliefAllocations();
+        return [
+            ...(data?.locations ?? []).map((location) => ({ id: location.id, name: location.name, latitude: location.latitude, longitude: location.longitude, category: location.isEpicenter ? "hazard" as const : "location" as const, detail: location.isEpicenter ? "Flood epicentre" : "Affected response location" })),
+            ...shelters.map((shelter) => ({ id: `shelter-${shelter.id}`, name: shelter.name, ...coordinatesForPlace(shelter.location), category: "shelter" as const, detail: `${shelter.currentOccupancy.toLocaleString()} / ${shelter.capacity.toLocaleString()} occupants` })),
+            ...dispatches.map((dispatch) => ({ id: `dispatch-${dispatch.teamId}`, name: `${dispatch.teamId} · ${dispatch.targetLocation}`, ...coordinatesForPlace(dispatch.targetLocation), category: "rescue" as const, detail: dispatch.missionDetails })),
+            ...allocations.map((allocation) => ({ id: allocation.id, name: `${allocation.resource} · ${allocation.location}`, ...coordinatesForPlace(allocation.location), category: "resource" as const, detail: `${allocation.quantity.toLocaleString()} from ${allocation.organisation}` })),
+        ];
+    }, [data?.locations, shelters]);
 
     const activities = useMemo<Activity[]>(() => {
         const allocations = getReliefAllocations();

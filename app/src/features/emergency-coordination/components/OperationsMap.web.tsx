@@ -1,14 +1,9 @@
-import { useEffect, useMemo, useRef } from "react";
-import { createElement } from "react";
+import { createElement, useEffect, useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { categoryColor, type OperationsMapFeature } from "./operationsMapTypes";
 
 type Props = { features: OperationsMapFeature[]; selectedId?: string | null; onSelect?: (id: string) => void; testID?: string };
-
-function escapeHtml(text: string) {
-    return text.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
-}
 
 export function OperationsMap({ features, selectedId, onSelect, testID = "operations-map" }: Props) {
     const frameRef = useRef<HTMLIFrameElement>(null);
