@@ -9,99 +9,122 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "@/src/components/ui";
+import { emergencyCoordinationRoutes } from "@/src/features/emergency-coordination/routes";
 import { colors } from "@/src/theme";
 
 type DmcWebShellProps = {
-  activeNav?: "hazards" | "ground-reports";
+  activeNav?: "hazards" | "ground-reports" | "emergency-coordination";
   children: ReactNode;
   topbarTitle?: string;
   protocol?: string;
+  profileInitials?: string;
+  profileName?: string;
+  profileSubtitle?: string;
 };
 
 export function DmcWebShell({
-  activeNav = "hazards",
-  children,
-  protocol = "PROTOCOL LEVEL 3",
-  topbarTitle = "HAZARD ASSESSMENT & WARNING",
-}: DmcWebShellProps) {
+                              activeNav = "hazards",
+                              children,
+                              protocol = "PROTOCOL LEVEL 3",
+                              topbarTitle = "HAZARD ASSESSMENT & WARNING",
+                              profileInitials = "RV",
+                              profileName = "Capt. R. Vance · Commander",
+                              profileSubtitle = "Duty Command HQ",
+                            }: DmcWebShellProps) {
   return (
-    <View style={styles.screen}>
-      <View style={styles.sidebar}>
-        <View>
-          <View style={styles.brandRow}>
-            <View style={styles.brandMark}>
-              <Text style={styles.brandMarkText}>DMC</Text>
+      <View style={styles.screen}>
+        <View style={styles.sidebar}>
+          <View>
+            <View style={styles.brandRow}>
+              <View style={styles.brandMark}>
+                <Text style={styles.brandMarkText}>DMC</Text>
+              </View>
+              <View>
+                <Text style={styles.brand}>DMC Portal</Text>
+                <Text style={styles.brandSub}>Flood Telemetry &amp; Ops</Text>
+              </View>
             </View>
-            <View>
-              <Text style={styles.brand}>DMC Portal</Text>
-              <Text style={styles.brandSub}>Flood Telemetry &amp; Ops</Text>
+            <View style={styles.nav}>
+              <NavItem
+                  icon={AlertTriangle}
+                  label="Hazards & warnings"
+                  onPress={() => router.push("/home")}
+                  selected={activeNav === "hazards"}
+              />
+              <NavItem
+                  icon={FileText}
+                  label="Ground reports"
+                  onPress={() => router.push("/ground-reports")}
+                  selected={activeNav === "ground-reports"}
+              />
+              <NavItem
+                  icon={UsersRound}
+                  label="Emergency coordination"
+                  onPress={() =>
+                      router.push(emergencyCoordinationRoutes.activeEmergency as never)
+                  }
+                  selected={activeNav === "emergency-coordination"}
+              />
+              <NavItem icon={BarChart3} label="Analytics & reports" />
             </View>
           </View>
-          <View style={styles.nav}>
-            <NavItem
-              icon={AlertTriangle}
-              label="Hazards & warnings"
-              onPress={() => router.push("/home")}
-              selected={activeNav === "hazards"}
-            />
-            <NavItem
-              icon={FileText}
-              label="Ground reports"
-              onPress={() => router.push("/ground-reports")}
-              selected={activeNav === "ground-reports"}
-            />
-            <NavItem icon={UsersRound} label="Emergency coordination" />
-            <NavItem icon={BarChart3} label="Analytics & reports" />
+          <View style={styles.sidebarFooter}>
+            <Text style={styles.footerTitle}>Disaster Management Centre</Text>
+            <Text style={styles.footerText}>Public service operations</Text>
+            <Text style={styles.connected}>● Connected</Text>
           </View>
         </View>
-        <View style={styles.sidebarFooter}>
-          <Text style={styles.footerTitle}>Disaster Management Centre</Text>
-          <Text style={styles.footerText}>Public service operations</Text>
-          <Text style={styles.connected}>● Connected</Text>
-        </View>
-      </View>
-      <View style={styles.main}>
-        <View style={styles.topbar}>
-          <Text style={styles.topbarTitle}>
-            {topbarTitle}　/　<Text style={styles.protocol}>{protocol}</Text>
-          </Text>
-          <View style={styles.profile}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>RV</Text>
-            </View>
-            <Text style={styles.commander}>
-              Capt. R. Vance · Commander{"\n"}
-              <Text style={styles.duty}>Duty Command HQ</Text>
+        <View style={styles.main}>
+          <View style={styles.topbar}>
+            <Text style={styles.topbarTitle}>
+              {topbarTitle}
+              {protocol ? (
+                  <>
+                    {"　/　"}
+                    <Text style={styles.protocol}>{protocol}</Text>
+                  </>
+              ) : null}
             </Text>
+            <View style={styles.profile}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{profileInitials}</Text>
+              </View>
+              <Text style={styles.commander}>
+                {profileName}
+                {"\n"}
+                <Text style={styles.duty}>{profileSubtitle}</Text>
+              </Text>
+            </View>
           </View>
+          {children}
         </View>
-        {children}
       </View>
-    </View>
   );
 }
 
 function NavItem({
-  icon,
-  label,
-  onPress,
-  selected = false,
-}: {
+                   icon,
+                   label,
+                   onPress,
+                   selected = false,
+                 }: {
   icon: typeof AlertTriangle;
   label: string;
   onPress?: () => void;
   selected?: boolean;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.navItem, selected && styles.navSelected]}
-    >
-      <Icon color={selected ? "#67A7FF" : "#98A9C2"} icon={icon} size={21} />
-      <Text style={[styles.navText, selected && styles.navTextSelected]}>
-        {label}
-      </Text>
-    </Pressable>
+      <Pressable
+          accessibilityRole="button"
+          onPress={onPress}
+          style={[styles.navItem, selected && styles.navSelected]}
+          testID={`nav-${label}`}
+      >
+        <Icon color={selected ? "#67A7FF" : "#98A9C2"} icon={icon} size={21} />
+        <Text style={[styles.navText, selected && styles.navTextSelected]}>
+          {label}
+        </Text>
+      </Pressable>
   );
 }
 
