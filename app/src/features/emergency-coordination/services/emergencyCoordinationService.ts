@@ -47,6 +47,50 @@ export function dispatchRescueTeam(input: Omit<RescueDispatch, "dispatchedAt">):
     return dispatch;
 }
 
+export type ReliefResource = { id: string; name: string; organisation: string; unit: string; available: number };
+export type ReliefAllocation = { id: string; resourceId: string; resource: string; organisation: string; quantity: number; location: string; allocatedAt: string };
+const initialReliefResources: ReliefResource[] = [
+    { id: "water", name: "Drinking Water", organisation: "DMC", unit: "L", available: 15000 },
+    { id: "food-packs", name: "Food Packs", organisation: "WFP", unit: "", available: 4500 },
+    { id: "medicine", name: "Medicine Kits", organisation: "Ministry of Health", unit: "", available: 1250 },
+    { id: "blankets", name: "Blankets", organisation: "Sri Lanka Red Cross", unit: "", available: 3200 },
+];
+let inMemoryReliefResources: ReliefResource[] = JSON.parse(JSON.stringify(initialReliefResources));
+let inMemoryReliefAllocations: ReliefAllocation[] = [];
+
+export function resetInMemoryReliefResources(): void {
+    inMemoryReliefResources = JSON.parse(JSON.stringify(initialReliefResources));
+    inMemoryReliefAllocations = [];
+}
+
+export function getReliefResources(): ReliefResource[] {
+    return inMemoryReliefResources.map((resource) => ({ ...resource }));
+}
+
+export function getReliefAllocations(): ReliefAllocation[] {
+    return inMemoryReliefAllocations.map((allocation) => ({ ...allocation }));
+}
+
+export function allocateReliefResource(input: { resourceId: string; quantity: number; location: string }): ReliefAllocation {
+    const resource = inMemoryReliefResources.find((item) => item.id === input.resourceId);
+    if (!resource) throw new Error("Select a valid relief resource.");
+    if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new Error("Enter a whole quantity greater than zero.");
+    if (input.quantity > resource.available) throw new Error(`Only ${resource.available.toLocaleString()} ${resource.name.toLowerCase()} are available.`);
+    if (!input.location.trim()) throw new Error("Select a distribution location.");
+    const allocation: ReliefAllocation = {
+        id: `relief-${Date.now()}-${inMemoryReliefAllocations.length}`,
+        resourceId: resource.id,
+        resource: resource.name,
+        organisation: resource.organisation,
+        quantity: input.quantity,
+        location: input.location.trim(),
+        allocatedAt: new Date().toISOString(),
+    };
+    inMemoryReliefResources = inMemoryReliefResources.map((item) => item.id === resource.id ? { ...item, available: item.available - input.quantity } : item);
+    inMemoryReliefAllocations = [allocation, ...inMemoryReliefAllocations];
+    return allocation;
+}
+
 export function resetInMemoryShelters(): void {
     inMemoryShelters = JSON.parse(JSON.stringify(sampleShelters));
 }

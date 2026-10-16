@@ -19,6 +19,11 @@ describe("emergencyCoordinationRoutes", () => {
         expect(emergencyCoordinationRoutes.assignRescueTeam).toBe(`${base}/rescue/assign`);
     });
 
+    it("builds the relief allocation and operational overview routes", () => {
+        expect(emergencyCoordinationRoutes.allocateReliefResources).toBe(`${base}/relief/allocate`);
+        expect(emergencyCoordinationRoutes.operationalOverview).toBe(`${base}/overview`);
+    });
+
     it("builds the event details route", () => {
         expect(
             emergencyCoordinationRoutes.eventDetails("event-123"),

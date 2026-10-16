@@ -165,6 +165,17 @@ export function ActiveEmergencyScreen() {
                 </View>
             </Card>
 
+            <Card style={styles.operationsCard} testID="resource-operations-card">
+                <View style={styles.operationsHeaderText}>
+                    <Text style={styles.operationsTitle}>Relief resources &amp; operational overview</Text>
+                    <Text style={styles.operationsSubtitle}>Allocate available stock to distribution locations and review the combined response picture.</Text>
+                </View>
+                <View style={styles.operationsButtonsRow}>
+                    <Button label="Allocate relief resources →" onPress={() => go(emergencyCoordinationRoutes.allocateReliefResources)} testID="btn-nav-allocate-relief" />
+                    <Button label="Operational overview" onPress={() => go(emergencyCoordinationRoutes.operationalOverview)} testID="btn-nav-operational-overview" variant="outline" />
+                </View>
+            </Card>
+
             <Card style={styles.footer} testID="action-bar">
                 <View style={styles.footerLeft}>
                     <Button

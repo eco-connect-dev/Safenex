@@ -7,6 +7,8 @@ export type CoordinationFocus = "shelters" | "rescue" | "relief";
 export const emergencyCoordinationRoutes = {
     activeEmergency: base,
     assignRescueTeam: `${base}/rescue/assign`,
+    allocateReliefResources: `${base}/relief/allocate`,
+    operationalOverview: `${base}/overview`,
     shelters: (eventId?: string) =>
         eventId ? `${base}/shelters/${encodeURIComponent(eventId)}` : `${base}/shelters`,
     allocateEvacuees: (shelterId?: string, count?: number) => {
