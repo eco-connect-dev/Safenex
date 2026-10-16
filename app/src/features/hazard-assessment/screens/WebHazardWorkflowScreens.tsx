@@ -39,8 +39,8 @@ export function AffectedAreaScreen() {
         </Text>
       </AlertBar>
 
-      <View style={styles.twoColumns}>
-        <View style={styles.card}>
+      <View style={[styles.twoColumns, styles.responsiveWrap]}>
+        <View style={[styles.card, styles.responsiveCard]}>
           <View style={styles.cardHeadingRow}>
             <View>
               <Text style={styles.cardTitle}>Selected Coverage Definition</Text>
@@ -65,7 +65,7 @@ export function AffectedAreaScreen() {
           </View>
         </View>
 
-        <View style={styles.card}>
+        <View style={[styles.card, styles.responsiveCard]}>
           <View style={styles.triageRow}>
             <View>
               <View style={styles.criticalPill}><Text style={styles.criticalPillText}>Critical triage</Text></View>
@@ -92,7 +92,7 @@ export function AffectedAreaScreen() {
 
       <View style={styles.summaryCard}>
         <View style={styles.summaryHeader}><Text style={styles.sectionTitle}>FLOOD HAZARD SPATIAL SUMMARY</Text><Text style={styles.sync}>Sync: 14 sec ago</Text></View>
-        <View style={styles.summaryRow}>
+        <View style={[styles.summaryRow, styles.responsiveWrap]}>
           <Summary icon={AlertTriangle} title="INUNDATION CORRIDOR" value="14,890 ha inundation corridor" hint="Primary flood plane flow" tone="red" />
           <Summary icon={BarChart3} title="CREST SURGE" value="+2.40 m over danger level" hint="Gauge Station 5801" tone="amber" />
           <Summary icon={MapPin} title="PINNED DATUM" value="5.5840° N, 100.4280° E" hint="WGS 84 / Standard Ellipsoid" tone="blue" />
@@ -118,7 +118,7 @@ export function PrepareWarningScreen() {
         <Text style={styles.alertCopy}>Sungai Muda Basin Flash Flood Inundation　·　High hazard　·　Target zone: Kedah / Penang interface　·　12,430 registered citizens</Text>
       </AlertBar>
 
-      <View style={styles.card}>
+      <View style={[styles.card, styles.responsiveCard]}>
         <Text style={styles.sectionHeading}>Select warning tier</Text>
         <View style={styles.tierRow}>
           <Tier number="1" title="Advisory" copy="Elevated hydrological anomalies. Precautionary notifications." selected={tier === 1} onPress={() => setTier(1)} />
@@ -127,8 +127,8 @@ export function PrepareWarningScreen() {
         </View>
       </View>
 
-      <View style={styles.twoColumns}>
-        <View style={styles.card}>
+      <View style={[styles.twoColumns, styles.responsiveWrap]}>
+        <View style={[styles.card, styles.responsiveCard]}>
           <Text style={styles.sectionHeading}>Broadcast content</Text>
           <View style={styles.broadcastTop}>
             <View style={styles.languageTabs}>
@@ -148,7 +148,7 @@ export function PrepareWarningScreen() {
           <Text style={styles.tokenHint}>Click to inject localized tokens:</Text>
           <View style={styles.tokenRow}><Token text="+ Sungai Muda Basin" /><Token text="+ SMK Merbok Relief Centre" /><Token text="+ Hotline 999" /></View>
         </View>
-        <View style={styles.card}>
+        <View style={[styles.card, styles.responsiveCard]}>
           <View style={styles.cardHeadingRow}><Text style={styles.sectionHeading}>Distribution channels</Text><View style={styles.channelCount}><Text style={styles.channelCountText}>3 channels configured</Text></View></View>
           <Channel title="Push notification" copy="12,430 registered devices" latency="1.2 s gateway latency · Within target" />
           <Channel title="SMS cell broadcast" copy="All active cellular towers · Priority 0" latency="1.8 s gateway latency · Within target" />
@@ -188,7 +188,7 @@ export function ReviewAuthorizeScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.reviewColumns}>
+      <View style={[styles.reviewColumns, styles.responsiveWrap]}>
         <View style={styles.reviewCard}>
           <View style={styles.reviewHeader}>
             <Text style={styles.reviewTitle}>Broadcast{"\n"}Summary</Text>
@@ -253,7 +253,7 @@ export function ReviewAuthorizeScreen() {
           </View>
         </View>
       </View>
-      <View style={styles.authorizationBar}>
+      <View style={[styles.authorizationBar, styles.responsiveWrap]}>
         <Pressable style={styles.saveButton}><Text style={styles.saveText}>Save as draft</Text></Pressable>
         <Pressable><Text style={styles.editParameters}>Edit parameters</Text></Pressable>
         <Text style={styles.keyRequired}>REQUIRES COMMANDER KEY</Text>
@@ -268,7 +268,7 @@ function WorkflowShell({ activeStep: _activeStep, children }: { activeStep: numb
 }
 
 function ScreenHeading({ title, subtitle }: { title: string; subtitle: string }) { return <View style={styles.heading}><Text style={styles.title}>{title}</Text><Text style={styles.subtitle}>{subtitle}</Text></View>; }
-function Steps({ activeStep }: { activeStep: number }) { return <View style={styles.steps}>{["Assess hazard", "Select affected area", "Prepare warning", "Review & authorize"].map((label, i) => { const number = i + 1; const complete = number < activeStep; return <Pressable key={label} onPress={() => number === 1 ? router.push("/home") : number === 2 ? router.push("/web/affected-area" as never) : number === 3 ? router.push("/web/prepare-warning" as never) : router.push("/web/review-authorize" as never)} style={[styles.step, number === activeStep && styles.stepActive, complete && styles.stepComplete]}><View style={styles.stepCircle}>{complete ? <Icon color="#059669" icon={Check} size={16} /> : <Text style={[styles.stepNumber, number === activeStep && styles.activeStepText]}>{number}</Text>}</View><View><Text style={[styles.stepOverline, number === activeStep && styles.activeStepText]}>STEP {number}{number === activeStep ? " · ACTIVE" : ""}</Text><Text style={[styles.stepLabel, number === activeStep && styles.activeStepText]}>{label}</Text></View></Pressable>; })}</View>; }
+function Steps({ activeStep }: { activeStep: number }) { return <View style={[styles.steps, styles.responsiveWrap]}>{["Assess hazard", "Select affected area", "Prepare warning", "Review & authorize"].map((label, i) => { const number = i + 1; const complete = number < activeStep; return <Pressable key={label} onPress={() => number === 1 ? router.push("/home") : number === 2 ? router.push("/web/affected-area" as never) : number === 3 ? router.push("/web/prepare-warning" as never) : router.push("/web/review-authorize" as never)} style={[styles.step, number === activeStep && styles.stepActive, complete && styles.stepComplete]}><View style={styles.stepCircle}>{complete ? <Icon color="#059669" icon={Check} size={16} /> : <Text style={[styles.stepNumber, number === activeStep && styles.activeStepText]}>{number}</Text>}</View><View><Text style={[styles.stepOverline, number === activeStep && styles.activeStepText]}>STEP {number}{number === activeStep ? " · ACTIVE" : ""}</Text><Text style={[styles.stepLabel, number === activeStep && styles.activeStepText]}>{label}</Text></View></Pressable>; })}</View>; }
 function AlertBar({ children }: { children: ReactNode }) { return <View style={styles.alertBar}><Icon color={colors.red} icon={AlertTriangle} size={20} />{children}</View>; }
 function Field({ label, value, dropdown, full, mono }: { label: string; value: string; dropdown?: boolean; full?: boolean; mono?: boolean }) { return <View style={[styles.field, full && styles.fullField]}><Text style={styles.inputLabel}>{label}</Text><View style={styles.fieldBox}><Text style={[styles.fieldValue, mono && styles.mono]}>{value}</Text>{dropdown ? <Icon color={muted} icon={ChevronDown} size={18} /> : null}</View></View>; }
 function Stat({ label, value, suffix }: { label: string; value: string; suffix: string }) { return <View style={styles.stat}><Text style={styles.statLabel}>{label}</Text><Text style={styles.statValue}>{value} <Text style={styles.statSuffix}>{suffix}</Text></Text></View>; }
@@ -278,9 +278,11 @@ function Channel({ title, copy, latency, warning = false }: { title: string; cop
 function Token({ text }: { text: string }) { return <View style={styles.token}><Text style={styles.tokenText}>{text}</Text></View>; }
 function ReviewRow({ danger = false, label, mono = false, value }: { danger?: boolean; label: string; mono?: boolean; value: string }) { return <View style={styles.reviewRow}><Text style={styles.reviewLabel}>{label}</Text><Text style={[styles.reviewValue, danger && styles.reviewDanger, mono && styles.reviewMono]}>{value}</Text></View>; }
 function Payload({ danger = false, label, value }: { danger?: boolean; label: string; value: string }) { return <View style={styles.payloadRow}><Text style={styles.payloadLabel}>{label}</Text><Text style={[styles.payloadValue, danger && styles.reviewDanger]}>{value}</Text></View>; }
-function BottomBar({ button, onPress }: { button: string; onPress: () => void }) { return <View style={styles.bottomBar}><Pressable style={styles.saveButton}><Text style={styles.saveText}>Save draft</Text></Pressable><Text style={styles.bottomHint}>Target audience: <Text style={styles.bold}>12,430 citizens</Text>　·　Back to affected area available</Text><Pressable onPress={onPress} style={styles.primaryButton}><Text style={styles.primaryText}>{button}</Text><Icon color={colors.white} icon={ChevronRight} size={18} /></Pressable></View>; }
+function BottomBar({ button, onPress }: { button: string; onPress: () => void }) { return <View style={[styles.bottomBar, styles.responsiveWrap]}><Pressable style={styles.saveButton}><Text style={styles.saveText}>Save draft</Text></Pressable><Text style={styles.bottomHint}>Target audience: <Text style={styles.bold}>12,430 citizens</Text>　·　Back to affected area available</Text><Pressable onPress={onPress} style={styles.primaryButton}><Text style={styles.primaryText}>{button}</Text><Icon color={colors.white} icon={ChevronRight} size={18} /></Pressable></View>; }
 
 const styles = StyleSheet.create({
+  responsiveWrap: { flexWrap: "wrap" },
+  responsiveCard: { minWidth: 280 },
   screen: { backgroundColor: page, flex: 1, flexDirection: "row" },
   sidebar: { backgroundColor: navy, justifyContent: "space-between", paddingBottom: 24, paddingHorizontal: 15, paddingTop: 38, width: 320 },
   brandRow: { alignItems: "center", flexDirection: "row", gap: 15, paddingHorizontal: 15 },

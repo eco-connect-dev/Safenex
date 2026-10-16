@@ -34,7 +34,7 @@ export default function WebHomeScreen() {
             </Text>
           </View>
 
-          <View style={styles.steps}>
+          <View style={[styles.steps, styles.responsiveWrap]}>
             <StepCard
               active={step === 1}
               label="Assess hazard"
@@ -62,7 +62,7 @@ export default function WebHomeScreen() {
           </View>
 
           {!acknowledged ? (
-            <View style={styles.criticalNotice}>
+            <View style={[styles.criticalNotice, styles.responsiveWrap]}>
               <View style={styles.noticeIcon}>
                 <Icon color={colors.red} icon={AlertTriangle} size={19} />
               </View>
@@ -90,7 +90,7 @@ export default function WebHomeScreen() {
             </View>
           )}
 
-          <View style={styles.panels}>
+          <View style={[styles.panels, styles.responsiveWrap]}>
             <HazardPanel />
             <ForecastPanel />
           </View>
@@ -110,7 +110,7 @@ export default function WebHomeScreen() {
           </View>
         </ScrollView>
 
-        <View style={styles.actionBar}>
+        <View style={[styles.actionBar, styles.responsiveWrap]}>
           <Pressable
             onPress={() => setAcknowledged(true)}
             style={({ pressed }) => [
@@ -322,6 +322,7 @@ function ForecastPanel() {
 }
 
 const styles = StyleSheet.create({
+  responsiveWrap: { flexWrap: "wrap" },
   screen: { backgroundColor: paleBackground, flex: 1, flexDirection: "row" },
   sidebar: {
     backgroundColor: "#0E172B",
@@ -383,8 +384,8 @@ const styles = StyleSheet.create({
   acknowledgedText: { color: "#047857", fontSize: 15, fontWeight: "700" },
   panels: { flexDirection: "row", gap: 30 },
   panel: { backgroundColor: colors.white, borderColor: "#D8E1EC", borderRadius: 15, borderWidth: 1, padding: 30 },
-  hazardPanel: { flex: 1, minWidth: 500 },
-  forecastPanel: { flex: 1, minWidth: 500 },
+  hazardPanel: { flex: 1, minWidth: 280 },
+  forecastPanel: { flex: 1, minWidth: 280 },
   badgeRow: { flexDirection: "row", gap: 10 },
   criticalBadge: { alignItems: "center", backgroundColor: "#FFE0E1", borderRadius: 20, flexDirection: "row", gap: 7, paddingHorizontal: 14, paddingVertical: 5 },
   badgeDot: { backgroundColor: colors.red, borderRadius: 5, height: 10, width: 10 },
