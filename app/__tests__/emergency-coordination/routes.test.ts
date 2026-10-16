@@ -15,6 +15,10 @@ describe("emergencyCoordinationRoutes", () => {
         expect(emergencyCoordinationRoutes.activeEmergency).toBe(base);
     });
 
+    it("builds the DMC duty officer rescue assignment route", () => {
+        expect(emergencyCoordinationRoutes.assignRescueTeam).toBe(`${base}/rescue/assign`);
+    });
+
     it("builds the event details route", () => {
         expect(
             emergencyCoordinationRoutes.eventDetails("event-123"),

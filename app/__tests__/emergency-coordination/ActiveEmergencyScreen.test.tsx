@@ -279,4 +279,5 @@ describe("ActiveEmergencyScreen", () => {
             emergencyCoordinationRoutes.alternativeShelter(),
         );
     });
+
 });

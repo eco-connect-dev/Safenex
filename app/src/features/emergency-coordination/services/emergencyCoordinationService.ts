@@ -12,6 +12,41 @@ const ALLOW_SAMPLE_FALLBACK = __DEV__;
 // In-memory store for dev / fallback mutations
 let inMemoryShelters: EmergencyShelter[] = JSON.parse(JSON.stringify(sampleShelters));
 
+export type RescueTeam = { id: string; organisation: string; status: "Available" | "On mission" | "Dispatched"; location: string };
+export type RescueDispatch = { teamId: string; targetLocation: string; missionDetails: string; dispatchedAt: string };
+const initialRescueTeams: RescueTeam[] = [
+    { id: "RT-01", organisation: "Army", status: "Available", location: "Rambukkana" },
+    { id: "RT-02", organisation: "Police", status: "Available", location: "Kegalle" },
+    { id: "RT-03", organisation: "Fire Service", status: "On mission", location: "Mawanella" },
+];
+let inMemoryRescueTeams: RescueTeam[] = JSON.parse(JSON.stringify(initialRescueTeams));
+let inMemoryRescueDispatches: RescueDispatch[] = [];
+
+export function resetInMemoryRescueTeams(): void {
+    inMemoryRescueTeams = JSON.parse(JSON.stringify(initialRescueTeams));
+    inMemoryRescueDispatches = [];
+}
+
+export function getRescueTeams(): RescueTeam[] {
+    return inMemoryRescueTeams.map((team) => ({ ...team }));
+}
+
+export function getRescueDispatches(): RescueDispatch[] {
+    return inMemoryRescueDispatches.map((dispatch) => ({ ...dispatch }));
+}
+
+export function dispatchRescueTeam(input: Omit<RescueDispatch, "dispatchedAt">): RescueDispatch {
+    const team = inMemoryRescueTeams.find((item) => item.id === input.teamId);
+    if (!team) throw new Error("Select a valid rescue team.");
+    if (team.status !== "Available") throw new Error(`${team.id} is not available for dispatch.`);
+    if (!input.targetLocation.trim()) throw new Error("Select a target location.");
+    if (!input.missionDetails.trim()) throw new Error("Enter mission details before dispatching.");
+    const dispatch = { ...input, targetLocation: input.targetLocation.trim(), missionDetails: input.missionDetails.trim(), dispatchedAt: new Date().toISOString() };
+    inMemoryRescueTeams = inMemoryRescueTeams.map((item) => item.id === team.id ? { ...item, status: "Dispatched" } : item);
+    inMemoryRescueDispatches = [dispatch, ...inMemoryRescueDispatches];
+    return dispatch;
+}
+
 export function resetInMemoryShelters(): void {
     inMemoryShelters = JSON.parse(JSON.stringify(sampleShelters));
 }

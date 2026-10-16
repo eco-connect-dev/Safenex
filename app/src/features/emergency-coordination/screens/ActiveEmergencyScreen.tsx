@@ -156,6 +156,12 @@ export function ActiveEmergencyScreen() {
                         testID="btn-nav-alternative"
                         variant="primary"
                     />
+                    <Button
+                        label="Assign rescue team →"
+                        onPress={() => go(emergencyCoordinationRoutes.assignRescueTeam)}
+                        testID="btn-nav-assign-rescue"
+                        variant="primary"
+                    />
                 </View>
             </Card>
 
