@@ -66,6 +66,8 @@ export type EmergencyShelter = {
     inAffectedArea?: boolean;
     contactPerson?: string;
     contactPhone?: string;
+    distanceKm?: number;
+    transitRoute?: string;
 };
 
 export type SheltersResult = {

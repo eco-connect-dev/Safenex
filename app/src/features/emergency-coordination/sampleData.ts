@@ -48,6 +48,8 @@ export const sampleShelters: EmergencyShelter[] = [
         inAffectedArea: true,
         contactPerson: "Mr. K. Perera",
         contactPhone: "+94 35 222 1234",
+        distanceKm: 4.2,
+        transitRoute: "4.2 km via Kegalle Main St (Clear)",
     },
     {
         id: "s2",
@@ -61,6 +63,8 @@ export const sampleShelters: EmergencyShelter[] = [
         inAffectedArea: true,
         contactPerson: "Mrs. S. Jayasinghe",
         contactPhone: "+94 36 226 5678",
+        distanceKm: 12.1,
+        transitRoute: "12.1 km via Ruwanwella Rd (Clear)",
     },
     {
         id: "s3",
@@ -74,6 +78,8 @@ export const sampleShelters: EmergencyShelter[] = [
         inAffectedArea: true,
         contactPerson: "Mr. N. Bandara",
         contactPhone: "+94 35 225 8910",
+        distanceKm: 0.0,
+        transitRoute: "Immediate pickup zone",
     },
     {
         id: "s4",
@@ -87,6 +93,8 @@ export const sampleShelters: EmergencyShelter[] = [
         inAffectedArea: true,
         contactPerson: "Mr. A. Silva",
         contactPhone: "+94 35 224 4321",
+        distanceKm: 8.5,
+        transitRoute: "8.5 km via A1 Highway (Clear)",
     },
     {
         id: "s5",

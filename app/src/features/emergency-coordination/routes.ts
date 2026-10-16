@@ -8,6 +8,20 @@ export const emergencyCoordinationRoutes = {
     activeEmergency: base,
     shelters: (eventId?: string) =>
         eventId ? `${base}/shelters/${encodeURIComponent(eventId)}` : `${base}/shelters`,
+    allocateEvacuees: (shelterId?: string, count?: number) => {
+        const params = new URLSearchParams();
+        if (shelterId) params.set("shelterId", shelterId);
+        if (count !== undefined) params.set("count", String(count));
+        const query = params.toString();
+        return query ? `${base}/allocate?${query}` : `${base}/allocate`;
+    },
+    alternativeShelter: (originShelterId?: string, count?: number) => {
+        const params = new URLSearchParams();
+        if (originShelterId) params.set("originShelterId", originShelterId);
+        if (count !== undefined) params.set("count", String(count));
+        const query = params.toString();
+        return query ? `${base}/alternative-shelter?${query}` : `${base}/alternative-shelter`;
+    },
     eventDetails: (eventId: string) =>
         `${base}/event/${encodeURIComponent(eventId)}`,
     responseCoordination: (eventId: string, focus?: CoordinationFocus) =>

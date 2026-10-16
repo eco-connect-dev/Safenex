@@ -60,4 +60,22 @@ describe("emergencyCoordinationRoutes", () => {
             `${base}/shelters/event%20%2F%20123`,
         );
     });
+
+    it("builds the allocateEvacuees route with and without parameters", () => {
+        expect(emergencyCoordinationRoutes.allocateEvacuees()).toBe(`${base}/allocate`);
+        expect(emergencyCoordinationRoutes.allocateEvacuees("s4")).toBe(`${base}/allocate?shelterId=s4`);
+        expect(emergencyCoordinationRoutes.allocateEvacuees("s4", 150)).toBe(
+            `${base}/allocate?shelterId=s4&count=150`,
+        );
+    });
+
+    it("builds the alternativeShelter route with and without parameters", () => {
+        expect(emergencyCoordinationRoutes.alternativeShelter()).toBe(`${base}/alternative-shelter`);
+        expect(emergencyCoordinationRoutes.alternativeShelter("s3")).toBe(
+            `${base}/alternative-shelter?originShelterId=s3`,
+        );
+        expect(emergencyCoordinationRoutes.alternativeShelter("s3", 200)).toBe(
+            `${base}/alternative-shelter?originShelterId=s3&count=200`,
+        );
+    });
 });
