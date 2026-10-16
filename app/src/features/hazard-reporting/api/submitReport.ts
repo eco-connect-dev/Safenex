@@ -8,6 +8,8 @@ export type SubmitGroundReportInput = {
   description: string;
   location: string;
   district: string;
+  latitude: number | null;
+  longitude: number | null;
   image: ReportImage | null;
 };
 
@@ -53,6 +55,10 @@ export async function submitGroundReport(input: SubmitGroundReportInput) {
   }
 
   const title = `${input.hazardType[0].toUpperCase()}${input.hazardType.slice(1)} reported at ${input.location}`;
+  const locationWithCoordinates =
+    input.latitude !== null && input.longitude !== null
+      ? `${input.location.trim()} · ${input.latitude.toFixed(5)}, ${input.longitude.toFixed(5)}`
+      : input.location.trim();
   const { data, error } = await supabase
     .from("hazards")
     .insert({
@@ -62,7 +68,7 @@ export async function submitGroundReport(input: SubmitGroundReportInput) {
       title,
       description: input.description.trim(),
       severity: "moderate",
-      location: input.location.trim(),
+      location: locationWithCoordinates,
       district: input.district.trim(),
       affected_people: 0,
       status: "active",

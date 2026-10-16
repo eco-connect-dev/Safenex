@@ -3,7 +3,6 @@ import {
   CircleAlert,
   Droplets,
   Ellipsis,
-  MapPin,
   Mountain,
 } from "lucide-react-native";
 import { useCallback, useState } from "react";
@@ -29,6 +28,8 @@ import { submitGroundReport } from "../api/submitReport";
 import { getMyGroundReports, type MyGroundReport } from "../api/myReports";
 import { useReportDraft } from "../store/reportDraft";
 import type { GroundReportStatus } from "../../ground-verification/types";
+import { SriLankaLocationMap } from "../components/SriLankaLocationMap";
+import type { MapCoordinate } from "../components/SriLankaLocationMap.native";
 
 type MobileNavigation = {
   navigate<Route extends keyof MobileRootStackParamList>(route: Route): void;
@@ -310,7 +311,26 @@ export function EvidenceScreen({ navigation }: Props<"Evidence">) {
 export function LocationScreen({ navigation }: Props<"Location">) {
   const location = useReportDraft((state) => state.location);
   const district = useReportDraft((state) => state.district);
+  const latitude = useReportDraft((state) => state.latitude);
+  const longitude = useReportDraft((state) => state.longitude);
   const setDraft = useReportDraft((state) => state.setDraft);
+  const selectMapPoint = (coordinate: MapCoordinate) => {
+    const { latitude: selectedLatitude, longitude: selectedLongitude } =
+      coordinate;
+    if (
+      selectedLatitude < 5.8 ||
+      selectedLatitude > 10 ||
+      selectedLongitude < 79.3 ||
+      selectedLongitude > 82.1
+    ) {
+      Alert.alert(
+        "Choose a Sri Lanka location",
+        "The selected point is outside Sri Lanka.",
+      );
+      return;
+    }
+    setDraft({ latitude: selectedLatitude, longitude: selectedLongitude });
+  };
   return (
     <View style={styles.screen}>
       <MobileHeader
@@ -318,16 +338,21 @@ export function LocationScreen({ navigation }: Props<"Location">) {
         title="Hazard Location"
       />
       <ProgressSteps current={4} />
-      <View style={styles.locationContent}>
-        <View style={styles.mapPlaceholder}>
-          <View style={styles.mapRoad} />
-          <View style={styles.mapPin}>
-            <Icon color={colors.white} icon={MapPin} size={28} />
-          </View>
-          <Text style={styles.mapLabel}>
-            {location || "Enter the incident location below"}
+      <ScrollView contentContainerStyle={styles.locationContent}>
+        <SriLankaLocationMap
+          latitude={latitude}
+          longitude={longitude}
+          onSelect={selectMapPoint}
+        />
+        <Text style={styles.helper}>
+          Tap the map or drag the pin to mark the incident. Add the nearby place
+          and district below.
+        </Text>
+        {latitude !== null && longitude !== null ? (
+          <Text style={styles.mapCoordinates}>
+            Pinned at {latitude.toFixed(5)}, {longitude.toFixed(5)}
           </Text>
-        </View>
+        ) : null}
         <TextField
           label="LOCATION"
           value={location}
@@ -340,7 +365,7 @@ export function LocationScreen({ navigation }: Props<"Location">) {
           onChangeText={(value) => setDraft({ district: value })}
           placeholder="District"
         />
-      </View>
+      </ScrollView>
       <FlowActions
         continueLabel="REVIEW REPORT"
         onBack={() => navigation.goBack()}
@@ -401,6 +426,12 @@ export function ReviewScreen({ navigation }: Props<"ReviewReport">) {
           label="LOCATION"
           value={`${draft.location || "—"}, ${draft.district || "—"}`}
         />
+        {draft.latitude !== null && draft.longitude !== null ? (
+          <ReviewItem
+            label="MAP PIN"
+            value={`${draft.latitude.toFixed(5)}, ${draft.longitude.toFixed(5)}`}
+          />
+        ) : null}
         <Text style={styles.submitting}>
           Submitted reports are marked pending verification.
         </Text>
@@ -770,39 +801,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: spacing.sm,
   },
-  locationContent: { flex: 1, gap: spacing.md, padding: spacing.lg },
-  mapPlaceholder: {
-    backgroundColor: "#DCECD8",
-    borderRadius: radii.lg,
-    height: 270,
-    overflow: "hidden",
-    position: "relative",
-  },
-  mapRoad: {
-    backgroundColor: colors.white,
-    height: 18,
-    left: -20,
-    position: "absolute",
-    right: -20,
-    top: 120,
-    transform: [{ rotate: "-5deg" }],
-  },
-  mapPin: {
-    alignItems: "center",
-    alignSelf: "center",
-    backgroundColor: "#E84C2B",
-    borderRadius: radii.pill,
-    height: 52,
-    justifyContent: "center",
-    marginTop: 80,
-    width: 52,
-  },
-  mapLabel: {
-    backgroundColor: colors.white,
-    bottom: spacing.sm,
-    left: spacing.sm,
-    padding: spacing.sm,
-    position: "absolute",
+  locationContent: { gap: spacing.md, padding: spacing.lg },
+  mapCoordinates: {
+    color: colors.primaryDark,
+    fontSize: typography.sizes.xs,
+    fontWeight: "700",
   },
   reviewContent: { gap: spacing.sm, padding: spacing.lg },
   reviewItem: { flexDirection: "row", justifyContent: "space-between" },
