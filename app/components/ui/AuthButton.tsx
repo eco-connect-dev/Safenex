@@ -7,8 +7,6 @@ import {
     Text,
 } from "react-native";
 
-import { Colors } from "@/constants/Colors";
-
 type AuthButtonProps = PressableProps & {
     label: string;
     variant?: "primary" | "secondary";
@@ -30,7 +28,7 @@ export function AuthButton({
                                ...pressableProps
                            }: AuthButtonProps) {
     const isPrimary = variant === "primary";
-    const textColor = isPrimary ? "#fff" : tintColor ?? Colors.textSecondary;
+    const textColor = isPrimary ? "#fff" : tintColor ?? "#2563EB";
 
     return (
         <Pressable
@@ -65,20 +63,22 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: Colors.forestGreen,
-        borderRadius: 9999,
+        backgroundColor: "#2563EB",
+        borderRadius: 8,
         paddingVertical: 14,
-        shadowColor: Colors.forestGreen,
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 3,
+        shadowColor: "#1D4ED8",
+        shadowOpacity: 0.18,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 2,
     },
     secondary: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: Colors.background,
+        backgroundColor: "#EFF6FF",
+        borderColor: "#C7DBFF",
+        borderWidth: 1,
         borderRadius: 8,
         paddingVertical: 12,
     },

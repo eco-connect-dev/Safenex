@@ -1,5 +1,5 @@
-import { Image } from "expo-image";
 import { Link, router } from "expo-router";
+import { Waves } from "lucide-react-native";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -12,7 +12,6 @@ import {
 
 import { AuthButton } from "@/components/ui/AuthButton";
 import { AuthTextField } from "@/components/ui/AuthTextField";
-import { Colors } from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginScreen() {
@@ -43,7 +42,7 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace("/home");
+    router.replace("/dashboard");
   };
 
   return (
@@ -51,94 +50,79 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.screen}
     >
-      {/* Decorative background blobs, mirrors Figma */}
-      <View style={styles.blobTop} pointerEvents="none" />
-      <View style={styles.blobBottom} pointerEvents="none" />
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Logo & header */}
-        <View style={styles.logoWrap}>
-          <Image
-            source={require("@/assets/images/logo.png")}
-            style={styles.logo}
-            contentFit="contain"
-          />
-          <Text style={styles.title}>Welcome to Safenex</Text>
-          <Text style={styles.tagline}>
-            Stay informed. Stay prepared. Keep your community safe.
-          </Text>
-        </View>
-
-        {/* Illustration */}
-        <View style={styles.illustrationWrap}>
-          <Image
-            source={require("@/assets/images/login-illustration.png")}
-            style={styles.illustration}
-            contentFit="cover"
-          />
-        </View>
-
-        {/* Login card */}
-        <View style={styles.card}>
-          <View style={styles.cardAccentBar} />
-
-          <View style={styles.form}>
-            <View style={styles.formHeading}>
-              <Text style={styles.formTitle}>Welcome back</Text>
-              <Text style={styles.formSubtitle}>
-                Sign in to report incidents and receive important local alerts.
-              </Text>
+        <View style={styles.loginLayout}>
+          <View style={styles.brandRow}>
+            <View style={styles.brandMark}>
+              <Waves color="#FFFFFF" size={30} strokeWidth={2.3} />
             </View>
-            <AuthTextField
-              icon="mail-outline"
-              placeholder="Email address"
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-            />
-            <AuthTextField
-              icon="lock-closed-outline"
-              placeholder="Password"
-              autoCapitalize="none"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-
-            {errorMessage ? (
-              <Text style={styles.error}>{errorMessage}</Text>
-            ) : null}
-
-            <AuthButton
-              label="Sign in to Safenex"
-              icon="arrow-forward"
-              loading={submitting}
-              onPress={handleLogin}
-            />
+            <View style={styles.brandCopy}>
+              <Text style={styles.brandTitle}>safenex</Text>
+              <Text style={styles.brandCaption}>Community safety and hazard alerts</Text>
+            </View>
           </View>
 
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
+          <View style={styles.intro}>
+            <Text style={styles.title}>Welcome back</Text>
+            <Text style={styles.tagline}>Stay informed, report local hazards, and help keep your community safe.</Text>
           </View>
 
-          <View style={styles.altActions}>
-            <Text style={styles.accountPrompt}>New to Safenex?</Text>
-            <Link href="./onboarding/community-signup" asChild>
-              <AuthButton
-                label="Create a community account"
-                icon="people-outline"
-                iconPosition="left"
-                variant="secondary"
-                tintColor={Colors.forestGreen}
+          <View style={styles.card}>
+            <View style={styles.cardAccentBar} />
+            <View style={styles.form}>
+              <View style={styles.formHeading}>
+                <Text style={styles.formTitle}>Sign in to your account</Text>
+                <Text style={styles.formSubtitle}>Sign in to access your safenex account.</Text>
+              </View>
+              <AuthTextField
+                icon="mail-outline"
+                placeholder="Email address"
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
               />
-            </Link>
+              <AuthTextField
+                icon="lock-closed-outline"
+                placeholder="Password"
+                autoCapitalize="none"
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+
+              {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+
+              <AuthButton
+                label="Sign in to safenex"
+                icon="arrow-forward"
+                loading={submitting}
+                onPress={handleLogin}
+              />
+            </View>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>NEW TO SAFENEX?</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.altActions}>
+              <Text style={styles.accountPrompt}>Create an account to report hazards and receive local alerts.</Text>
+              <Link href="./onboarding/community-signup" asChild>
+                <AuthButton
+                  label="Create an account"
+                  icon="people-outline"
+                  iconPosition="left"
+                  variant="secondary"
+                  tintColor="#2563EB"
+                />
+              </Link>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -147,130 +131,79 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  blobTop: {
-    position: "absolute",
-    top: -80,
-    right: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 9999,
-    backgroundColor: Colors.blobGreen,
-  },
-  blobBottom: {
-    position: "absolute",
-    bottom: -100,
-    left: -80,
-    width: 240,
-    height: 240,
-    borderRadius: 9999,
-    backgroundColor: Colors.blobCoral,
-  },
+  screen: { backgroundColor: "#F1F5F9", flex: 1 },
   scrollContent: {
+    alignItems: "center",
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 32,
+    justifyContent: "center",
+    paddingHorizontal: 22,
+    paddingVertical: 32,
+  },
+  loginLayout: { gap: 20, maxWidth: 460, width: "100%" },
+  brandRow: { alignItems: "center", alignSelf: "center", gap: 9 },
+  brandMark: {
     alignItems: "center",
+    backgroundColor: "#2563EB",
+    borderRadius: 16,
+    height: 58,
+    justifyContent: "center",
+    width: 58,
   },
-  logoWrap: {
-    alignItems: "center",
-  },
-  logo: {
-    width: 96,
-    height: 96,
-    borderRadius: 20,
-  },
+  brandCopy: { alignItems: "center" },
+  brandTitle: { color: "#0E172B", fontSize: 24, fontWeight: "800", letterSpacing: 0.2 },
+  brandCaption: { color: "#6B829C", fontSize: 12, marginTop: 2, textAlign: "center" },
+  intro: { gap: 5, marginTop: 8 },
   title: {
-    marginTop: 16,
-    fontSize: 24,
-    fontWeight: "700",
-    letterSpacing: -0.6,
-    color: Colors.textPrimary,
+    color: "#0B1424",
+    fontSize: 27,
+    fontWeight: "800",
   },
   tagline: {
-    marginTop: 4,
-    fontSize: 18,
-    color: Colors.textSecondary,
-  },
-  illustrationWrap: {
-    width: "100%",
-    maxWidth: 280,
-    marginTop: 32,
-  },
-  illustration: {
-    width: "100%",
-    aspectRatio: 4 / 3,
-    borderRadius: 16,
-    backgroundColor: Colors.divider,
+    color: "#607797",
+    fontSize: 14,
+    lineHeight: 21,
   },
   card: {
-    width: "100%",
-    marginTop: 32,
-    backgroundColor: Colors.surface,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#D8E1EC",
     borderRadius: 12,
-    overflow: "hidden",
-    shadowColor: "#37474F",
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
+    borderWidth: 1,
     elevation: 2,
+    overflow: "hidden",
+    shadowColor: "#0E172B",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    width: "100%",
   },
-  cardAccentBar: {
-    height: 4,
-    backgroundColor: Colors.forestGreen,
-  },
-  form: {
-    padding: 24,
-    gap: 12,
-  },
-  formHeading: {
-    gap: 6,
-    marginBottom: 4,
-  },
-  formTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-  },
+  cardAccentBar: { backgroundColor: "#2563EB", height: 4 },
+  form: { gap: 13, padding: 24 },
+  formHeading: { gap: 5, marginBottom: 3 },
+  formTitle: { color: "#0B1424", fontSize: 18, fontWeight: "800" },
   formSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Colors.textSecondary,
-  },
-  error: {
-    color: Colors.error,
+    color: "#607797",
     fontSize: 13,
+    lineHeight: 19,
   },
+  error: { color: "#B42323", fontSize: 13 },
   dividerRow: {
-    flexDirection: "row",
     alignItems: "center",
+    flexDirection: "row",
     paddingHorizontal: 24,
-    marginTop: 4,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.divider,
-  },
+  dividerLine: { backgroundColor: "#E5ECF4", flex: 1, height: 1 },
   dividerText: {
-    marginHorizontal: 16,
-    fontSize: 12,
-    fontWeight: "600",
+    color: "#8CA1BE",
+    fontSize: 10,
+    fontWeight: "700",
     letterSpacing: 0.6,
-    color: Colors.textSecondary,
+    marginHorizontal: 12,
   },
-  altActions: {
-    padding: 24,
-    paddingTop: 16,
-  },
+  altActions: { padding: 20, paddingTop: 14 },
   accountPrompt: {
+    color: "#607797",
+    fontSize: 12,
     marginBottom: 8,
-    fontSize: 13,
-    color: Colors.textSecondary,
     textAlign: "center",
   },
 });

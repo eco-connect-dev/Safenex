@@ -3,13 +3,20 @@ import {
   CircleAlert,
   Droplets,
   Ellipsis,
-  MapPin,
   Mountain,
-  Navigation,
-  Waves,
 } from "lucide-react-native";
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import {
+  Alert,
+  Image as RNImage,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
 
 import { Badge, Button, Card, Icon, TextField } from "@/src/components/ui";
 import { colors, radii, spacing, typography } from "@/src/theme";
@@ -17,6 +24,12 @@ import type { MobileRootStackParamList } from "@/src/app/navigation/RootNavigato
 import { FlowActions } from "../components/FlowActions";
 import { MobileHeader } from "../components/MobileHeader";
 import { ProgressSteps } from "../components/ProgressSteps";
+import { submitGroundReport } from "../api/submitReport";
+import { getMyGroundReports, type MyGroundReport } from "../api/myReports";
+import { useReportDraft } from "../store/reportDraft";
+import type { GroundReportStatus } from "../../ground-verification/types";
+import { SriLankaLocationMap } from "../components/SriLankaLocationMap";
+import type { MapCoordinate } from "../components/SriLankaLocationMap.native";
 
 type MobileNavigation = {
   navigate<Route extends keyof MobileRootStackParamList>(route: Route): void;
@@ -101,13 +114,27 @@ function AlertRow({
 }
 
 export function HazardTypeScreen({ navigation }: Props<"HazardType">) {
-  const [selected, setSelected] = useState("Landslide");
+  const selected = useReportDraft((state) => state.hazardType);
+  const setDraft = useReportDraft((state) => state.setDraft);
   const hazards = [
-    { label: "Landslide", icon: Mountain, color: "#A6763B" },
-    { label: "Flood", icon: Droplets, color: "#3387E9" },
-    { label: "Blocked Road", icon: CircleAlert, color: "#F6A51C" },
-    { label: "River Overflow", icon: Waves, color: "#238BA7" },
-    { label: "Other", icon: Ellipsis, color: "#9CA3A9" },
+    {
+      label: "Landslide",
+      value: "landslide" as const,
+      icon: Mountain,
+      color: "#A6763B",
+    },
+    {
+      label: "Flood",
+      value: "flood" as const,
+      icon: Droplets,
+      color: "#3387E9",
+    },
+    {
+      label: "Other",
+      value: "other" as const,
+      icon: Ellipsis,
+      color: "#9CA3A9",
+    },
   ];
 
   return (
@@ -120,11 +147,11 @@ export function HazardTypeScreen({ navigation }: Props<"HazardType">) {
       <Text style={styles.stepLabel}>STEP 1 OF 4 · WHAT DID YOU SEE?</Text>
       <ScrollView contentContainerStyle={styles.hazardList}>
         {hazards.map((hazard) => {
-          const active = selected === hazard.label;
+          const active = selected === hazard.value;
           return (
             <Pressable
               key={hazard.label}
-              onPress={() => setSelected(hazard.label)}
+              onPress={() => setDraft({ hazardType: hazard.value })}
               style={[styles.hazardCard, active && styles.hazardCardActive]}
             >
               <View
@@ -148,9 +175,9 @@ export function HazardTypeScreen({ navigation }: Props<"HazardType">) {
 export function IncidentDetailsScreen({
   navigation,
 }: Props<"IncidentDetails">) {
-  const [description, setDescription] = useState(
-    "Large crack appeared near the hillside road after heavy rainfall.",
-  );
+  const description = useReportDraft((state) => state.description);
+  const hazardType = useReportDraft((state) => state.hazardType);
+  const setDraft = useReportDraft((state) => state.setDraft);
   return (
     <View style={styles.screen}>
       <MobileHeader
@@ -159,12 +186,15 @@ export function IncidentDetailsScreen({
       />
       <ProgressSteps current={2} />
       <View style={styles.detailContent}>
-        <Badge label="Landslide" tone="warning" />
+        <Badge
+          label={hazardType[0].toUpperCase() + hazardType.slice(1)}
+          tone="warning"
+        />
         <Text style={styles.fieldCaption}>WHAT DID YOU OBSERVE?</Text>
         <TextField
           multiline
           numberOfLines={7}
-          onChangeText={setDescription}
+          onChangeText={(value) => setDraft({ description: value })}
           placeholder="Describe what happened..."
           style={styles.description}
           value={description}
@@ -183,18 +213,89 @@ export function IncidentDetailsScreen({
 }
 
 export function EvidenceScreen({ navigation }: Props<"Evidence">) {
+  const image = useReportDraft((state) => state.image);
+  const setDraft = useReportDraft((state) => state.setDraft);
+  const selectImage = async (camera: boolean) => {
+    try {
+      if (camera) {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(
+            "Camera permission required",
+            "Allow camera access to take a hazard evidence photo.",
+          );
+          return;
+        }
+      }
+      const result = camera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ["images"],
+            base64: true,
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ["images"],
+            base64: true,
+            quality: 0.8,
+          });
+      const asset = result.canceled ? null : result.assets[0];
+      if (asset?.base64) {
+        setDraft({
+          image: {
+            uri: asset.uri,
+            base64: asset.base64,
+            mimeType: asset.mimeType ?? "image/jpeg",
+            fileName:
+              asset.fileName ??
+              `evidence.${(asset.mimeType ?? "image/jpeg").split("/")[1] ?? "jpg"}`,
+          },
+        });
+      }
+    } catch (error) {
+      Alert.alert(
+        "Unable to open images",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    }
+  };
   return (
     <View style={styles.screen}>
       <MobileHeader onBack={() => navigation.goBack()} title="Add Evidence" />
       <ProgressSteps current={3} />
       <View style={styles.evidenceContent}>
-        <View style={styles.evidenceFrame}>
-          <View style={styles.evidenceSky} />
-          <View style={styles.evidenceLand} />
-          <Text style={styles.evidenceSample}>EXAMPLE EVIDENCE PHOTO</Text>
-        </View>
-        <Button label="TAKE PHOTO" icon={CircleAlert} size="lg" />
-        <Button label="CHOOSE FROM GALLERY" variant="outline" size="lg" />
+        {image ? (
+          <RNImage
+            resizeMode="cover"
+            source={{ uri: image.uri }}
+            style={styles.evidenceFrame}
+          />
+        ) : (
+          <View style={styles.evidenceFrame}>
+            <View style={styles.evidenceSky} />
+            <View style={styles.evidenceLand} />
+            <Text style={styles.evidenceSample}>EXAMPLE EVIDENCE PHOTO</Text>
+          </View>
+        )}
+        <Button
+          label="TAKE PHOTO"
+          icon={CircleAlert}
+          onPress={() => void selectImage(true)}
+          size="lg"
+        />
+        <Button
+          label="CHOOSE FROM GALLERY"
+          onPress={() => void selectImage(false)}
+          variant="outline"
+          size="lg"
+        />
+        {image ? (
+          <Button
+            label="REMOVE PHOTO"
+            onPress={() => setDraft({ image: null })}
+            variant="ghost"
+            size="sm"
+          />
+        ) : null}
         <Text style={styles.helper}>
           Photos help Duty Officers verify your report.
         </Text>
@@ -208,6 +309,28 @@ export function EvidenceScreen({ navigation }: Props<"Evidence">) {
 }
 
 export function LocationScreen({ navigation }: Props<"Location">) {
+  const location = useReportDraft((state) => state.location);
+  const district = useReportDraft((state) => state.district);
+  const latitude = useReportDraft((state) => state.latitude);
+  const longitude = useReportDraft((state) => state.longitude);
+  const setDraft = useReportDraft((state) => state.setDraft);
+  const selectMapPoint = (coordinate: MapCoordinate) => {
+    const { latitude: selectedLatitude, longitude: selectedLongitude } =
+      coordinate;
+    if (
+      selectedLatitude < 5.8 ||
+      selectedLatitude > 10 ||
+      selectedLongitude < 79.3 ||
+      selectedLongitude > 82.1
+    ) {
+      Alert.alert(
+        "Choose a Sri Lanka location",
+        "The selected point is outside Sri Lanka.",
+      );
+      return;
+    }
+    setDraft({ latitude: selectedLatitude, longitude: selectedLongitude });
+  };
   return (
     <View style={styles.screen}>
       <MobileHeader
@@ -215,28 +338,34 @@ export function LocationScreen({ navigation }: Props<"Location">) {
         title="Hazard Location"
       />
       <ProgressSteps current={4} />
-      <View style={styles.locationContent}>
-        <View style={styles.mapPlaceholder}>
-          <View style={styles.mapRoad} />
-          <View style={styles.mapPin}>
-            <Icon color={colors.white} icon={MapPin} size={28} />
-          </View>
-          <Text style={styles.mapLabel}>Kandy Rd, Kadawatha</Text>
-        </View>
-        <Button
-          label="+ USE CURRENT LOCATION"
-          variant="outline"
-          size="md"
-          icon={Navigation}
+      <ScrollView contentContainerStyle={styles.locationContent}>
+        <SriLankaLocationMap
+          latitude={latitude}
+          longitude={longitude}
+          onSelect={selectMapPoint}
         />
-        <View style={styles.coordinates}>
-          <Coordinate label="LATITUDE" value="6.9271° N" />
-          <Coordinate label="LONGITUDE" value="79.8612° E" />
-        </View>
         <Text style={styles.helper}>
-          Location accuracy <Text style={styles.accuracy}>± 5 m · High</Text>
+          Tap the map or drag the pin to mark the incident. Add the nearby place
+          and district below.
         </Text>
-      </View>
+        {latitude !== null && longitude !== null ? (
+          <Text style={styles.mapCoordinates}>
+            Pinned at {latitude.toFixed(5)}, {longitude.toFixed(5)}
+          </Text>
+        ) : null}
+        <TextField
+          label="LOCATION"
+          value={location}
+          onChangeText={(value) => setDraft({ location: value })}
+          placeholder="Town, road, or village"
+        />
+        <TextField
+          label="DISTRICT"
+          value={district}
+          onChangeText={(value) => setDraft({ district: value })}
+          placeholder="District"
+        />
+      </ScrollView>
       <FlowActions
         continueLabel="REVIEW REPORT"
         onBack={() => navigation.goBack()}
@@ -246,35 +375,76 @@ export function LocationScreen({ navigation }: Props<"Location">) {
   );
 }
 
-function Coordinate({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.coordinate}>
-      <Text style={styles.coordinateLabel}>{label}</Text>
-      <Text style={styles.coordinateValue}>{value}</Text>
-    </View>
-  );
-}
-
 export function ReviewScreen({ navigation }: Props<"ReviewReport">) {
+  const draft = useReportDraft();
+  const setDraft = useReportDraft((state) => state.setDraft);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const submit = async () => {
+    if (
+      !draft.description.trim() ||
+      !draft.location.trim() ||
+      !draft.district.trim()
+    ) {
+      setSubmitError(
+        "Add the incident description, location, and district before submitting.",
+      );
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const id = await submitGroundReport(draft);
+      setDraft({ submittedId: id });
+      navigation.navigate("Submitted");
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "The report could not be submitted. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const typeLabel =
+    draft.hazardType[0].toUpperCase() + draft.hazardType.slice(1);
   return (
     <View style={styles.screen}>
       <MobileHeader onBack={() => navigation.goBack()} title="Review Report" />
       <ScrollView contentContainerStyle={styles.reviewContent}>
-        <ReviewItem label="HAZARD TYPE" value="Landslide" />
+        <ReviewItem label="HAZARD TYPE" value={typeLabel} />
         <ReviewItem
           label="DESCRIPTION"
-          value="Large crack appeared near the hillside road after heavy rainfall."
+          value={draft.description || "Not provided"}
         />
-        <ReviewItem label="EVIDENCE" value="1 photo attached" />
-        <ReviewItem label="LOCATION" value="Kandy Rd, Kadawatha" />
+        <ReviewItem
+          label="EVIDENCE"
+          value={draft.image ? "1 photo attached" : "No photo attached"}
+        />
+        <ReviewItem
+          label="LOCATION"
+          value={`${draft.location || "—"}, ${draft.district || "—"}`}
+        />
+        {draft.latitude !== null && draft.longitude !== null ? (
+          <ReviewItem
+            label="MAP PIN"
+            value={`${draft.latitude.toFixed(5)}, ${draft.longitude.toFixed(5)}`}
+          />
+        ) : null}
         <Text style={styles.submitting}>
-          Submitting as Community Volunteer · Nadeesha P.
+          Submitted reports are marked pending verification.
         </Text>
+        {submitError ? (
+          <Text style={styles.errorText}>{submitError}</Text>
+        ) : null}
       </ScrollView>
       <View style={styles.submitAction}>
         <Button
           label="SUBMIT REPORT"
-          onPress={() => navigation.navigate("Submitted")}
+          disabled={submitting}
+          loading={submitting}
+          onPress={() => void submit()}
           size="lg"
         />
       </View>
@@ -295,6 +465,8 @@ function ReviewItem({ label, value }: { label: string; value: string }) {
 }
 
 export function SubmittedScreen({ navigation }: Props<"Submitted">) {
+  const submittedId = useReportDraft((state) => state.submittedId);
+  const reset = useReportDraft((state) => state.reset);
   return (
     <View style={styles.screen}>
       <View style={styles.submittedContent}>
@@ -304,7 +476,9 @@ export function SubmittedScreen({ navigation }: Props<"Submitted">) {
         <Text style={styles.submittedTitle}>
           Report Submitted{"\n"}Successfully
         </Text>
-        <Text style={styles.reference}>Reference: GH-2026-04821</Text>
+        <Text style={styles.reference}>
+          Reference: {submittedId?.slice(0, 8).toUpperCase() ?? "—"}
+        </Text>
         <Badge label="PENDING VERIFICATION" tone="warning" />
         <Text style={styles.helper}>
           Your report has been sent to a DMC Duty Officer for verification.
@@ -319,7 +493,10 @@ export function SubmittedScreen({ navigation }: Props<"Submitted">) {
         />
         <Button
           label="BACK TO HOME"
-          onPress={() => navigation.navigate("MobileHome")}
+          onPress={() => {
+            reset();
+            navigation.navigate("MobileHome");
+          }}
           size="lg"
         />
       </View>
@@ -328,56 +505,94 @@ export function SubmittedScreen({ navigation }: Props<"Submitted">) {
 }
 
 export function ReportsScreen({ navigation }: Props<"MyReports">) {
+  const [reports, setReports] = useState<MyGroundReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      setLoading(true);
+      getMyGroundReports()
+        .then((items) => {
+          if (!active) return;
+          setReports(items);
+          setLoadError("");
+        })
+        .catch((error: unknown) => {
+          if (active) {
+            setLoadError(
+              error instanceof Error
+                ? error.message
+                : "Your reports could not be loaded.",
+            );
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
   return (
     <View style={styles.screen}>
       <MobileHeader onBack={() => navigation.goBack()} title="My Reports" />
       <ScrollView contentContainerStyle={styles.content}>
-        <ReportCard
-          status="APPROVED"
-          title="Landslide"
-          detail="Kandy Rd, Kadawatha · 04 Sep, 09:12"
-        />
-        <ReportCard
-          status="PENDING"
-          title="Flood"
-          detail="Negombo Canal Rd · 04 Sep, 10:40"
-        />
-        <ReportCard
-          status="REJECTED"
-          title="Blocked Road"
-          detail="Gampaha Junction · 05 Sep, 07:05"
-        />
+        {loading ? (
+          <Text style={styles.reportsMessage}>Loading your reports…</Text>
+        ) : null}
+        {loadError ? (
+          <Text style={styles.reportsError}>{loadError}</Text>
+        ) : null}
+        {!loading && !loadError && reports.length === 0 ? (
+          <Card style={styles.emptyReports}>
+            <Text style={styles.reportTitle}>No reports yet</Text>
+            <Text style={styles.rowMeta}>
+              Hazard reports you submit will appear here.
+            </Text>
+            <Button
+              label="REPORT A HAZARD"
+              onPress={() => navigation.navigate("HazardType")}
+              size="md"
+            />
+          </Card>
+        ) : null}
+        {reports.map((report) => (
+          <ReportCard key={report.id} report={report} />
+        ))}
       </ScrollView>
       <BottomHint active="Reports" navigation={navigation} />
     </View>
   );
 }
 
-function ReportCard({
-  status,
-  title,
-  detail,
-}: {
-  status: "APPROVED" | "PENDING" | "REJECTED";
-  title: string;
-  detail: string;
-}) {
-  const tone =
-    status === "APPROVED"
-      ? "success"
-      : status === "PENDING"
-        ? "warning"
-        : "danger";
+function ReportCard({ report }: { report: MyGroundReport }) {
+  const statusLabel: Record<GroundReportStatus, string> = {
+    pending_review: "PENDING",
+    accepted: "VERIFIED",
+    rejected: "REJECTED",
+  };
+  const tone: Record<GroundReportStatus, "success" | "warning" | "danger"> = {
+    pending_review: "warning",
+    accepted: "success",
+    rejected: "danger",
+  };
   return (
     <Card style={styles.reportCard}>
       <View style={styles.reportHeader}>
         <View>
-          <Text style={styles.reportTitle}>{title}</Text>
-          <Text style={styles.rowMeta}>{detail}</Text>
+          <Text style={styles.reportTitle}>{report.title}</Text>
+          <Text style={styles.rowMeta}>
+            {report.location}, {report.district} ·{" "}
+            {new Date(report.submittedAt).toLocaleString()}
+          </Text>
         </View>
-        <Badge label={status} tone={tone} />
+        <Badge label={statusLabel[report.status]} tone={tone[report.status]} />
       </View>
-      {status === "APPROVED" ? <NoticeText /> : null}
+      {report.status === "accepted" ? <NoticeText /> : null}
     </Card>
   );
 }
@@ -566,6 +781,7 @@ const styles = StyleSheet.create({
     height: 180,
     overflow: "hidden",
     position: "relative",
+    width: "100%",
   },
   evidenceSky: { backgroundColor: "#B8D9E9", flex: 1 },
   evidenceLand: {
@@ -585,55 +801,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: spacing.sm,
   },
-  locationContent: { flex: 1, gap: spacing.md, padding: spacing.lg },
-  mapPlaceholder: {
-    backgroundColor: "#DCECD8",
-    borderRadius: radii.lg,
-    height: 270,
-    overflow: "hidden",
-    position: "relative",
+  locationContent: { gap: spacing.md, padding: spacing.lg },
+  mapCoordinates: {
+    color: colors.primaryDark,
+    fontSize: typography.sizes.xs,
+    fontWeight: "700",
   },
-  mapRoad: {
-    backgroundColor: colors.white,
-    height: 18,
-    left: -20,
-    position: "absolute",
-    right: -20,
-    top: 120,
-    transform: [{ rotate: "-5deg" }],
-  },
-  mapPin: {
-    alignItems: "center",
-    alignSelf: "center",
-    backgroundColor: "#E84C2B",
-    borderRadius: radii.pill,
-    height: 52,
-    justifyContent: "center",
-    marginTop: 80,
-    width: 52,
-  },
-  mapLabel: {
-    backgroundColor: colors.white,
-    bottom: spacing.sm,
-    left: spacing.sm,
-    padding: spacing.sm,
-    position: "absolute",
-  },
-  coordinates: { flexDirection: "row", gap: spacing.sm },
-  coordinate: {
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flex: 1,
-    padding: spacing.sm,
-  },
-  coordinateLabel: { color: colors.textMuted, fontSize: 9 },
-  coordinateValue: {
-    color: colors.text,
-    fontSize: typography.sizes.sm,
-    marginTop: 3,
-  },
-  accuracy: { color: colors.green, fontWeight: "700" },
   reviewContent: { gap: spacing.sm, padding: spacing.lg },
   reviewItem: { flexDirection: "row", justifyContent: "space-between" },
   reviewText: { flex: 1, gap: spacing.xs },
@@ -648,6 +821,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.sizes.xs,
     padding: spacing.md,
+  },
+  errorText: {
+    color: colors.red,
+    fontSize: typography.sizes.sm,
+    paddingHorizontal: spacing.lg,
   },
   submitAction: { gap: spacing.sm, padding: spacing.lg },
   submittedContent: {
@@ -677,6 +855,18 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   reportCard: { gap: spacing.md },
+  reportsMessage: {
+    color: colors.textMuted,
+    fontSize: typography.sizes.sm,
+    paddingVertical: spacing.lg,
+    textAlign: "center",
+  },
+  reportsError: {
+    color: colors.red,
+    fontSize: typography.sizes.sm,
+    padding: spacing.md,
+  },
+  emptyReports: { gap: spacing.md },
   reportHeader: {
     alignItems: "flex-start",
     flexDirection: "row",

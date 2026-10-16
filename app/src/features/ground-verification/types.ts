@@ -1,4 +1,4 @@
-export type GroundReportStatus = "pending" | "approved" | "rejected";
+export type GroundReportStatus = "pending_review" | "accepted" | "rejected";
 
 export type GroundReport = {
   id: string;
@@ -12,4 +12,8 @@ export type GroundReport = {
   contact: string;
   status: GroundReportStatus;
   evidenceLabel: string;
+  title: string;
+  imageUrl: string | null;
+  severity: string;
+  affectedPeople: number;
 };
