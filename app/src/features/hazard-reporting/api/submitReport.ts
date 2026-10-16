@@ -24,6 +24,13 @@ function makeId() {
 }
 
 export async function submitGroundReport(input: SubmitGroundReportInput) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Sign in to submit and track your ground report.");
+
   const id = makeId();
   let imageUrl: string | null = null;
   let uploadedPath: string | null = null;
@@ -50,6 +57,7 @@ export async function submitGroundReport(input: SubmitGroundReportInput) {
     .from("hazards")
     .insert({
       id,
+      reporter_id: user.id,
       hazard_type: input.hazardType,
       title,
       description: input.description.trim(),
