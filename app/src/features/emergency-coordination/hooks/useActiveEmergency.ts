@@ -11,7 +11,7 @@ export function useActiveEmergency(eventId?: string) {
     const [error, setError] = useState<string | null>(null);
     const mounted = useRef(true);
 
-    const load = useCallback(
+    const fetchEmergencyData = useCallback(
         async (isRefresh: boolean) => {
             if (isRefresh) setRefreshing(true);
             else setLoading(true);
@@ -35,12 +35,27 @@ export function useActiveEmergency(eventId?: string) {
     );
 
     useEffect(() => {
+        let isCurrent = true;
         mounted.current = true;
-        void load(false);
+
+        fetchActiveEmergency(eventId)
+            .then((result) => {
+                if (!isCurrent) return;
+                setData(result.data);
+                setSource(result.source);
+                setLoading(false);
+            })
+            .catch((e) => {
+                if (!isCurrent) return;
+                setError(e instanceof Error ? e.message : "Unable to load emergency data.");
+                setLoading(false);
+            });
+
         return () => {
+            isCurrent = false;
             mounted.current = false;
         };
-    }, [load]);
+    }, [eventId]);
 
     return {
         data,
@@ -48,7 +63,7 @@ export function useActiveEmergency(eventId?: string) {
         loading,
         refreshing,
         error,
-        refresh: () => load(true),
-        retry: () => load(false),
+        refresh: () => fetchEmergencyData(true),
+        retry: () => fetchEmergencyData(false),
     };
 }

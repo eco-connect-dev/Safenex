@@ -24,6 +24,7 @@ type DmcWebShellProps = {
   profileInitials?: string;
   profileName?: string;
   profileSubtitle?: string;
+  showTopbarSignOut?: boolean;
 };
 
 export function DmcWebShell({
@@ -34,6 +35,7 @@ export function DmcWebShell({
   profileInitials = "RV",
   profileName = "Capt. R. Vance · Commander",
   profileSubtitle = "Duty Command HQ",
+  showTopbarSignOut = true,
 }: DmcWebShellProps) {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
@@ -68,7 +70,7 @@ export function DmcWebShell({
             <NavItem
               icon={LayoutDashboard}
               label="Dashboard"
-              onPress={() => router.push("/dashboard")}
+              onPress={() => router.push("/dashboard" as never)}
               selected={activeNav === "dashboard"}
             />
             <NavItem
@@ -94,7 +96,7 @@ export function DmcWebShell({
             <NavItem
               icon={BarChart3}
               label="Analytics & reports"
-              onPress={() => router.push("/analytics")}
+              onPress={() => router.push("/analytics" as never)}
               selected={activeNav === "analytics"}
             />
           </View>
@@ -123,19 +125,27 @@ export function DmcWebShell({
           </Text>
           <View style={styles.topbarRight}>
             <View style={styles.profile}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{profileInitials}</Text>
-              </View>
+              {profileInitials ? (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{profileInitials}</Text>
+                </View>
+              ) : null}
               <Text style={styles.commander}>
                 {profileName}
-                {"\n"}
-                <Text style={styles.duty}>{profileSubtitle}</Text>
+                {profileSubtitle ? (
+                  <>
+                    {"\n"}
+                    <Text style={styles.duty}>{profileSubtitle}</Text>
+                  </>
+                ) : null}
               </Text>
             </View>
-            <Pressable accessibilityRole="button" disabled={signingOut} onPress={() => void handleSignOut()} style={({ pressed }) => [styles.topbarSignOut, pressed && styles.pressed, signingOut && styles.disabled]}>
-              <Icon color={colors.primary} icon={LogOut} size={17} />
-              <Text style={styles.topbarSignOutText}>{signingOut ? "Signing out…" : "Sign out"}</Text>
-            </Pressable>
+            {showTopbarSignOut ? (
+              <Pressable accessibilityRole="button" disabled={signingOut} onPress={() => void handleSignOut()} style={({ pressed }) => [styles.topbarSignOut, pressed && styles.pressed, signingOut && styles.disabled]}>
+                <Icon color={colors.primary} icon={LogOut} size={17} />
+                <Text style={styles.topbarSignOutText}>{signingOut ? "Signing out…" : "Sign out"}</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
         {children}

@@ -1,18 +1,26 @@
-import { sampleActiveEmergency } from "../sampleData";
+import { sampleActiveEmergency, sampleShelters } from "../sampleData";
 import type {
     ActiveEmergency,
     ActiveEmergencyResult,
     EmergencySeverity,
+    EmergencyShelter,
+    SheltersResult,
 } from "../types";
 
 const ALLOW_SAMPLE_FALLBACK = __DEV__;
+
+// In-memory store for dev / fallback mutations
+let inMemoryShelters: EmergencyShelter[] = JSON.parse(JSON.stringify(sampleShelters));
+
+export function resetInMemoryShelters(): void {
+    inMemoryShelters = JSON.parse(JSON.stringify(sampleShelters));
+}
 
 const sampleResult: ActiveEmergencyResult = {
     data: sampleActiveEmergency,
     source: "sample",
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export async function fetchActiveEmergency(
     eventId?: string,
 ): Promise<ActiveEmergencyResult> {
@@ -83,3 +91,141 @@ export async function fetchActiveEmergency(
         throw error;
     }
 }
+
+export async function fetchEmergencyShelters(
+    eventId?: string,
+): Promise<SheltersResult> {
+    try {
+        const emergencyResult = await fetchActiveEmergency(eventId);
+        const event = emergencyResult.data?.event ?? null;
+        const targetEventId = event?.id ?? eventId;
+
+        const { supabase } = await import("@/lib/supabase");
+        let query = supabase.from("emergency_shelters").select("*");
+        if (targetEventId) {
+            query = query.eq("event_id", targetEventId);
+        }
+        const { data: rows, error } = await query;
+
+        if (error || !rows || rows.length === 0) {
+            if (ALLOW_SAMPLE_FALLBACK) {
+                return {
+                    shelters: inMemoryShelters,
+                    event: event ?? sampleActiveEmergency.event,
+                    source: "sample",
+                };
+            }
+            if (error) throw new Error(error.message);
+            return { shelters: [], event, source: "supabase" };
+        }
+
+        const shelters: EmergencyShelter[] = rows.map((r: any) => ({
+            id: r.id,
+            eventId: r.event_id,
+            name: r.name,
+            category: r.category ?? "Registered emergency shelter",
+            location: r.location,
+            currentOccupancy: Number(r.current_occupancy),
+            capacity: Number(r.capacity),
+            status: r.status,
+            inAffectedArea: r.in_affected_area ?? true,
+            contactPerson: r.contact_person,
+            contactPhone: r.contact_phone,
+        }));
+
+        return {
+            shelters,
+            event,
+            source: "supabase",
+        };
+    } catch (error) {
+        if (ALLOW_SAMPLE_FALLBACK) {
+            return {
+                shelters: inMemoryShelters,
+                event: sampleActiveEmergency.event,
+                source: "sample",
+            };
+        }
+        throw error;
+    }
+}
+
+export async function allocateShelterEvacuees(
+    shelterId: string,
+    evacueeCount: number,
+): Promise<EmergencyShelter> {
+    if (evacueeCount <= 0) {
+        throw new Error("Evacuee count must be greater than zero.");
+    }
+
+    try {
+        const { supabase } = await import("@/lib/supabase");
+        const { data: current, error: fetchErr } = await supabase
+            .from("emergency_shelters")
+            .select("*")
+            .eq("id", shelterId)
+            .single();
+
+        if (fetchErr || !current) {
+            throw new Error(fetchErr?.message ?? "Shelter not found.");
+        }
+
+        const newOccupancy = Number(current.current_occupancy) + evacueeCount;
+        const capacity = Number(current.capacity);
+        if (newOccupancy > capacity) {
+            throw new Error(`Allocation exceeds capacity (${capacity - Number(current.current_occupancy)} spaces remaining).`);
+        }
+
+        const newStatus = newOccupancy >= capacity ? "full" : "available";
+
+        const { data: updated, error: updateErr } = await supabase
+            .from("emergency_shelters")
+            .update({
+                current_occupancy: newOccupancy,
+                status: newStatus,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", shelterId)
+            .select()
+            .single();
+
+        if (updateErr || !updated) {
+            throw new Error(updateErr?.message ?? "Failed to update shelter occupancy.");
+        }
+
+        return {
+            id: updated.id,
+            eventId: updated.event_id,
+            name: updated.name,
+            category: updated.category ?? "Registered emergency shelter",
+            location: updated.location,
+            currentOccupancy: Number(updated.current_occupancy),
+            capacity: Number(updated.capacity),
+            status: updated.status,
+            inAffectedArea: updated.in_affected_area ?? true,
+            contactPerson: updated.contact_person,
+            contactPhone: updated.contact_phone,
+        };
+    } catch (error) {
+        if (ALLOW_SAMPLE_FALLBACK) {
+            const index = inMemoryShelters.findIndex((s) => s.id === shelterId);
+            if (index === -1) {
+                throw new Error("Shelter not found in sample data.");
+            }
+            const shelter = inMemoryShelters[index];
+            const newOccupancy = shelter.currentOccupancy + evacueeCount;
+            if (newOccupancy > shelter.capacity) {
+                throw new Error(`Allocation exceeds capacity (${shelter.capacity - shelter.currentOccupancy} spaces remaining).`);
+            }
+            const updatedShelter: EmergencyShelter = {
+                ...shelter,
+                currentOccupancy: newOccupancy,
+                status: newOccupancy >= shelter.capacity ? "full" : "available",
+            };
+            inMemoryShelters[index] = updatedShelter;
+            return updatedShelter;
+        }
+        throw error;
+    }
+}
+

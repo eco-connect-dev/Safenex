@@ -51,3 +51,25 @@ export type ActiveEmergencyResult = {
     data: ActiveEmergency | null;
     source: EmergencyDataSource;
 };
+
+export type ShelterStatus = "available" | "full" | "standby";
+
+export type EmergencyShelter = {
+    id: string;
+    eventId: string;
+    name: string;
+    category: string;
+    location: string;
+    currentOccupancy: number;
+    capacity: number;
+    status: ShelterStatus;
+    inAffectedArea?: boolean;
+    contactPerson?: string;
+    contactPhone?: string;
+};
+
+export type SheltersResult = {
+    shelters: EmergencyShelter[];
+    event: EmergencyEvent | null;
+    source: EmergencyDataSource;
+};

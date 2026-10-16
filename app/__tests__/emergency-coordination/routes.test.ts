@@ -44,4 +44,20 @@ describe("emergencyCoordinationRoutes", () => {
             ).toBe(`${base}/response/event-123?focus=${focus}`);
         },
     );
+
+    it("builds the shelters route without an event ID", () => {
+        expect(emergencyCoordinationRoutes.shelters()).toBe(`${base}/shelters`);
+    });
+
+    it("builds the shelters route with an event ID", () => {
+        expect(emergencyCoordinationRoutes.shelters("event-123")).toBe(
+            `${base}/shelters/event-123`,
+        );
+    });
+
+    it("encodes special characters in shelters event ID", () => {
+        expect(emergencyCoordinationRoutes.shelters("event / 123")).toBe(
+            `${base}/shelters/event%20%2F%20123`,
+        );
+    });
 });

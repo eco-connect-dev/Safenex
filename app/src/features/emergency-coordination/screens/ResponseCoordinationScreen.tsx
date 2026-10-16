@@ -38,6 +38,11 @@ export function ResponseCoordinationScreen() {
                     testID="back-button"
                     variant="outline"
                 />
+                <Button
+                    label="View shelters in affected area →"
+                    onPress={() => router.push(emergencyCoordinationRoutes.shelters(eventId) as Href)}
+                    testID="view-shelters-button"
+                />
             </View>
         </ScrollView>
     );

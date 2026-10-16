@@ -1,4 +1,4 @@
-import type { ActiveEmergency } from "./types";
+import type { ActiveEmergency, EmergencyShelter } from "./types";
 
 export const SAMPLE_EVENT_ID = "sample-kegalle-flood";
 
@@ -34,3 +34,85 @@ export const sampleActiveEmergency: ActiveEmergency = {
         { id: "u3", text: "Resource inventory checked · stock availability updated", status: "Ready", occurredAt: "2026-11-15T14:05:00+05:30" },
     ],
 };
+
+export const sampleShelters: EmergencyShelter[] = [
+    {
+        id: "s1",
+        eventId: SAMPLE_EVENT_ID,
+        name: "Kegalle Central College",
+        category: "Registered emergency shelter",
+        location: "Kegalle Town",
+        currentOccupancy: 650,
+        capacity: 1000,
+        status: "available",
+        inAffectedArea: true,
+        contactPerson: "Mr. K. Perera",
+        contactPhone: "+94 35 222 1234",
+    },
+    {
+        id: "s2",
+        eventId: SAMPLE_EVENT_ID,
+        name: "Ruwanwella Vidyalaya",
+        category: "Registered emergency shelter",
+        location: "Ruwanwella",
+        currentOccupancy: 420,
+        capacity: 800,
+        status: "available",
+        inAffectedArea: true,
+        contactPerson: "Mrs. S. Jayasinghe",
+        contactPhone: "+94 36 226 5678",
+    },
+    {
+        id: "s3",
+        eventId: SAMPLE_EVENT_ID,
+        name: "Aranayake Community Hall",
+        category: "Registered emergency shelter",
+        location: "Aranayake",
+        currentOccupancy: 500,
+        capacity: 500,
+        status: "full",
+        inAffectedArea: true,
+        contactPerson: "Mr. N. Bandara",
+        contactPhone: "+94 35 225 8910",
+    },
+    {
+        id: "s4",
+        eventId: SAMPLE_EVENT_ID,
+        name: "Mawanella Sports Complex",
+        category: "Registered emergency shelter",
+        location: "Mawanella",
+        currentOccupancy: 300,
+        capacity: 1200,
+        status: "available",
+        inAffectedArea: true,
+        contactPerson: "Mr. A. Silva",
+        contactPhone: "+94 35 224 4321",
+    },
+    {
+        id: "s5",
+        eventId: SAMPLE_EVENT_ID,
+        name: "Galigamuwa Central School",
+        category: "Registered emergency shelter",
+        location: "Galigamuwa",
+        currentOccupancy: 180,
+        capacity: 400,
+        status: "available",
+        inAffectedArea: false,
+        contactPerson: "Mrs. T. Fernando",
+        contactPhone: "+94 35 228 7765",
+    },
+    {
+        id: "s6",
+        eventId: SAMPLE_EVENT_ID,
+        name: "Rambukkana Youth Centre",
+        category: "Registered emergency shelter",
+        location: "Rambukkana",
+        currentOccupancy: 350,
+        capacity: 350,
+        status: "full",
+        inAffectedArea: false,
+        contactPerson: "Mr. P. Dissanayake",
+        contactPhone: "+94 35 226 3344",
+    },
+];
+
