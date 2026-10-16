@@ -3,14 +3,17 @@ import {
   BarChart3,
   FileText,
   LayoutDashboard,
+  LogOut,
   UsersRound,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "@/src/components/ui";
 import { colors } from "@/src/theme";
+import { supabase } from "@/lib/supabase";
 
 type DmcWebShellProps = {
   activeNav?: "dashboard" | "hazards" | "ground-reports" | "analytics";
@@ -25,6 +28,22 @@ export function DmcWebShell({
   protocol = "PROTOCOL LEVEL 3",
   topbarTitle = "HAZARD ASSESSMENT & WARNING",
 }: DmcWebShellProps) {
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    setSignOutError("");
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setSignOutError(error.message);
+      setSigningOut(false);
+      return;
+    }
+    router.replace("/login");
+  };
+
   return (
     <View style={styles.screen}>
       <View style={styles.sidebar}>
@@ -70,6 +89,11 @@ export function DmcWebShell({
           <Text style={styles.footerTitle}>Disaster Management Centre</Text>
           <Text style={styles.footerText}>Public service operations</Text>
           <Text style={styles.connected}>● Connected</Text>
+          {signOutError ? <Text style={styles.signOutError}>{signOutError}</Text> : null}
+          <Pressable accessibilityRole="button" disabled={signingOut} onPress={() => void handleSignOut()} style={({ pressed }) => [styles.sidebarSignOut, pressed && styles.pressed, signingOut && styles.disabled]}>
+            <Icon color="#CBD5E1" icon={LogOut} size={17} />
+            <Text style={styles.sidebarSignOutText}>{signingOut ? "Signing out…" : "Sign out"}</Text>
+          </Pressable>
         </View>
       </View>
       <View style={styles.main}>
@@ -82,14 +106,20 @@ export function DmcWebShell({
               </>
             ) : null}
           </Text>
-          <View style={styles.profile}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>RV</Text>
+          <View style={styles.topbarRight}>
+            <View style={styles.profile}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>RV</Text>
+              </View>
+              <Text style={styles.commander}>
+                Capt. R. Vance · Commander{"\n"}
+                <Text style={styles.duty}>Duty Command HQ</Text>
+              </Text>
             </View>
-            <Text style={styles.commander}>
-              Capt. R. Vance · Commander{"\n"}
-              <Text style={styles.duty}>Duty Command HQ</Text>
-            </Text>
+            <Pressable accessibilityRole="button" disabled={signingOut} onPress={() => void handleSignOut()} style={({ pressed }) => [styles.topbarSignOut, pressed && styles.pressed, signingOut && styles.disabled]}>
+              <Icon color={colors.primary} icon={LogOut} size={17} />
+              <Text style={styles.topbarSignOutText}>{signingOut ? "Signing out…" : "Sign out"}</Text>
+            </Pressable>
           </View>
         </View>
         {children}
@@ -174,6 +204,9 @@ const styles = StyleSheet.create({
   footerTitle: { color: colors.white, fontSize: 14 },
   footerText: { color: "#9AAAC2", fontSize: 14 },
   connected: { color: "#10D99B", fontSize: 14, marginTop: 12 },
+  sidebarSignOut: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 9, marginTop: 16, paddingHorizontal: 7, paddingVertical: 8 },
+  sidebarSignOutText: { color: "#CBD5E1", fontSize: 14, fontWeight: "700" },
+  signOutError: { color: "#FDA4AF", fontSize: 11, marginTop: 5 },
   main: { flex: 1, minWidth: 0, position: "relative" },
   topbar: {
     alignItems: "center",
@@ -207,5 +240,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
   },
+  topbarRight: { alignItems: "center", flexDirection: "row", gap: 20 },
+  topbarSignOut: { alignItems: "center", borderColor: "#CBD5E1", borderRadius: 8, borderWidth: 1, flexDirection: "row", gap: 7, paddingHorizontal: 11, paddingVertical: 8 },
+  topbarSignOutText: { color: colors.primary, fontSize: 12, fontWeight: "700" },
+  pressed: { opacity: 0.75 },
+  disabled: { opacity: 0.55 },
   avatarText: { color: "#29405F", fontSize: 13, fontWeight: "800" },
 });
