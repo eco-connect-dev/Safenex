@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  BarChart3,
   FileText,
   LayoutDashboard,
   UsersRound,
@@ -12,7 +13,7 @@ import { Icon } from "@/src/components/ui";
 import { colors } from "@/src/theme";
 
 type DmcWebShellProps = {
-  activeNav?: "dashboard" | "hazards" | "ground-reports";
+  activeNav?: "dashboard" | "hazards" | "ground-reports" | "analytics";
   children: ReactNode;
   topbarTitle?: string;
   protocol?: string;
@@ -57,6 +58,12 @@ export function DmcWebShell({
               selected={activeNav === "ground-reports"}
             />
             <NavItem icon={UsersRound} label="Emergency coordination" />
+            <NavItem
+              icon={BarChart3}
+              label="Analytics & reports"
+              onPress={() => router.push("/analytics")}
+              selected={activeNav === "analytics"}
+            />
           </View>
         </View>
         <View style={styles.sidebarFooter}>
@@ -68,7 +75,12 @@ export function DmcWebShell({
       <View style={styles.main}>
         <View style={styles.topbar}>
           <Text style={styles.topbarTitle}>
-            {topbarTitle}　/　<Text style={styles.protocol}>{protocol}</Text>
+            {topbarTitle}
+            {protocol ? (
+              <>
+                　/　<Text style={styles.protocol}>{protocol}</Text>
+              </>
+            ) : null}
           </Text>
           <View style={styles.profile}>
             <View style={styles.avatar}>
@@ -120,27 +132,80 @@ const styles = StyleSheet.create({
     paddingTop: 38,
     width: 280,
   },
-  brandRow: { alignItems: "center", flexDirection: "row", gap: 12, paddingHorizontal: 10 },
-  brandMark: { alignItems: "center", backgroundColor: colors.primary, borderRadius: 8, height: 46, justifyContent: "center", width: 46 },
+  brandRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 10,
+  },
+  brandMark: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    height: 46,
+    justifyContent: "center",
+    width: 46,
+  },
   brandMarkText: { color: colors.white, fontSize: 16, fontWeight: "800" },
   brand: { color: colors.white, fontSize: 21, fontWeight: "800" },
   brandSub: { color: "#A4B4C9", fontSize: 14, marginTop: 4 },
   nav: { gap: 8, marginTop: 55 },
-  navItem: { alignItems: "center", borderRadius: 10, flexDirection: "row", gap: 16, paddingHorizontal: 16, paddingVertical: 15 },
-  navSelected: { backgroundColor: "#17294B", borderLeftColor: "#4E9AFF", borderLeftWidth: 3 },
+  navItem: {
+    alignItems: "center",
+    borderRadius: 10,
+    flexDirection: "row",
+    gap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  navSelected: {
+    backgroundColor: "#17294B",
+    borderLeftColor: "#4E9AFF",
+    borderLeftWidth: 3,
+  },
   navText: { color: "#9AAAC2", flexShrink: 1, fontSize: 16 },
   navTextSelected: { color: colors.white, fontWeight: "700" },
-  sidebarFooter: { borderTopColor: "#25334A", borderTopWidth: 1, gap: 5, paddingTop: 30 },
+  sidebarFooter: {
+    borderTopColor: "#25334A",
+    borderTopWidth: 1,
+    gap: 5,
+    paddingTop: 30,
+  },
   footerTitle: { color: colors.white, fontSize: 14 },
   footerText: { color: "#9AAAC2", fontSize: 14 },
   connected: { color: "#10D99B", fontSize: 14, marginTop: 12 },
   main: { flex: 1, minWidth: 0, position: "relative" },
-  topbar: { alignItems: "center", backgroundColor: colors.white, borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", gap: 20, minHeight: 76, justifyContent: "space-between", paddingHorizontal: 28 },
-  topbarTitle: { color: "#5E7595", flexShrink: 1, fontSize: 15, fontWeight: "700", letterSpacing: 0.5 },
+  topbar: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    gap: 20,
+    minHeight: 76,
+    justifyContent: "space-between",
+    paddingHorizontal: 28,
+  },
+  topbarTitle: {
+    color: "#5E7595",
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
   protocol: { color: "#0B1424" },
   commander: { color: "#0B1424", fontSize: 16, textAlign: "right" },
   duty: { color: "#8DA0BB", fontSize: 14 },
   profile: { alignItems: "center", flexDirection: "row", gap: 14 },
-  avatar: { alignItems: "center", backgroundColor: "#E7EDF5", borderColor: "#CBD7E5", borderRadius: 22, borderWidth: 1, height: 44, justifyContent: "center", width: 44 },
+  avatar: {
+    alignItems: "center",
+    backgroundColor: "#E7EDF5",
+    borderColor: "#CBD7E5",
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
   avatarText: { color: "#29405F", fontSize: 13, fontWeight: "800" },
 });
