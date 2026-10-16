@@ -1,7 +1,7 @@
 import {
   AlertTriangle,
-  BarChart3,
   FileText,
+  LayoutDashboard,
   UsersRound,
 } from "lucide-react-native";
 import { router } from "expo-router";
@@ -12,7 +12,7 @@ import { Icon } from "@/src/components/ui";
 import { colors } from "@/src/theme";
 
 type DmcWebShellProps = {
-  activeNav?: "hazards" | "ground-reports";
+  activeNav?: "dashboard" | "hazards" | "ground-reports";
   children: ReactNode;
   topbarTitle?: string;
   protocol?: string;
@@ -39,6 +39,12 @@ export function DmcWebShell({
           </View>
           <View style={styles.nav}>
             <NavItem
+              icon={LayoutDashboard}
+              label="Dashboard"
+              onPress={() => router.push("/dashboard")}
+              selected={activeNav === "dashboard"}
+            />
+            <NavItem
               icon={AlertTriangle}
               label="Hazards & warnings"
               onPress={() => router.push("/home")}
@@ -51,7 +57,6 @@ export function DmcWebShell({
               selected={activeNav === "ground-reports"}
             />
             <NavItem icon={UsersRound} label="Emergency coordination" />
-            <NavItem icon={BarChart3} label="Analytics & reports" />
           </View>
         </View>
         <View style={styles.sidebarFooter}>

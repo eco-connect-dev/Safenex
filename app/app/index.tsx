@@ -52,7 +52,7 @@ export default function IndexScreen() {
   }
 
   if (session) {
-    return <Redirect href="/home" />;
+    return <Redirect href="/dashboard" />;
   }
 
   return <Redirect href="./login" />;
