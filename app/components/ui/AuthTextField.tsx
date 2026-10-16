@@ -1,8 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, TextInput, TextInputProps, View } from "react-native";
 
-import { Colors } from "@/constants/Colors";
-
 type AuthTextFieldProps = TextInputProps & {
     icon: keyof typeof Ionicons.glyphMap;
 };
@@ -10,9 +8,9 @@ type AuthTextFieldProps = TextInputProps & {
 export function AuthTextField({ icon, style, ...inputProps }: AuthTextFieldProps) {
     return (
         <View style={styles.wrapper}>
-            <Ionicons name={icon} size={18} color={Colors.textMuted} style={styles.icon} />
+            <Ionicons name={icon} size={18} color="#8CA1BE" style={styles.icon} />
             <TextInput
-                placeholderTextColor={Colors.textMuted}
+        placeholderTextColor="#8CA1BE"
                 style={[styles.input, style]}
                 {...inputProps}
             />
@@ -22,10 +20,12 @@ export function AuthTextField({ icon, style, ...inputProps }: AuthTextFieldProps
 
 const styles = StyleSheet.create({
     wrapper: {
+        backgroundColor: "#FFFFFF",
+        borderColor: "#C7D5E5",
+        borderRadius: 8,
+        borderWidth: 1,
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: Colors.background,
-        borderRadius: 8,
         paddingHorizontal: 14,
     },
     icon: {
@@ -35,6 +35,6 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: 14,
         fontSize: 16,
-        color: Colors.textPrimary,
+        color: "#0B1424",
     },
 });
