@@ -20,6 +20,9 @@ create index if not exists idx_emergency_shelters_status on public.emergency_she
 alter table public.emergency_shelters enable row level security;
 
 -- TEMPORARY: Read/Write for everyone until role-based access control is added.
+drop policy if exists "dev read shelters" on public.emergency_shelters;
 create policy "dev read shelters" on public.emergency_shelters for select to anon, authenticated using (true);
+drop policy if exists "dev update shelters" on public.emergency_shelters;
 create policy "dev update shelters" on public.emergency_shelters for update to anon, authenticated using (true);
-create policy "dev insert shelters" on public.emergency_shelters for insert to anon, authenticated using (true);
+drop policy if exists "dev insert shelters" on public.emergency_shelters;
+create policy "dev insert shelters" on public.emergency_shelters for insert to anon, authenticated with check (true);

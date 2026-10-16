@@ -1,19 +1,20 @@
 import { router, type Href } from "expo-router";
 import { ArrowRight, ChevronDown, Info } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 
 import { Card, Icon } from "@/src/components/ui";
 import { colors, radii, spacing, typography } from "@/src/theme";
 import { useActiveEmergency } from "../hooks/useActiveEmergency";
-import { dispatchRescueTeam, getRescueTeams, type RescueTeam } from "../services/emergencyCoordinationService";
+import { createRescueDispatch, fetchRescueTeams, getRescueTeams, type RescueTeam } from "../services/emergencyCoordinationService";
 import { emergencyCoordinationRoutes } from "../routes";
 
 export function AssignRescueTeamScreen() {
     const { width } = useWindowDimensions();
-    const { data } = useActiveEmergency();
+    const { data, source } = useActiveEmergency();
     const locations = useMemo(() => data?.locations.map((location) => location.name) ?? ["Rambukkana", "Kegalle", "Mawanella"], [data]);
     const [teams, setTeams] = useState<RescueTeam[]>(getRescueTeams());
+    const [submitting, setSubmitting] = useState(false);
     const [selectedId, setSelectedId] = useState("RT-01");
     const [target, setTarget] = useState(locations[0] ?? "Rambukkana");
     const [mission, setMission] = useState("Support evacuation of isolated households and report field status.");
@@ -22,16 +23,35 @@ export function AssignRescueTeamScreen() {
     const selectedTeam = teams.find((team) => team.id === selectedId);
     const isWide = width >= 900;
 
+    useEffect(() => {
+        let current = true;
+        fetchRescueTeams().then((rows) => {
+            if (!current) return;
+            setTeams(rows);
+            setSelectedId((prev) => {
+                if (rows.some((team) => team.id === prev && team.status === "Available")) {
+                    return prev;
+                }
+                return rows.find((team) => team.status === "Available")?.id ?? "";
+            });
+        }).catch((error) => Alert.alert("Unable to load rescue teams", error instanceof Error ? error.message : "Please try again."));
+        return () => { current = false; };
+    }, []);
+
     const selectTeam = (team: RescueTeam) => {
         if (team.status === "Available") setSelectedId(team.id);
     };
-    const handleDispatch = () => {
+    const handleDispatch = async () => {
+        if (submitting) return;
+        setSubmitting(true);
         try {
-            const dispatch = dispatchRescueTeam({ teamId: selectedId, targetLocation: target, missionDetails: mission });
-            setTeams(getRescueTeams());
+            const dispatch = await createRescueDispatch({ teamId: selectedId, targetLocation: target, missionDetails: mission }, source === "supabase" ? data?.event.id : undefined);
+            setTeams(await fetchRescueTeams());
             setSuccess(`${dispatch.teamId} (${selectedTeam?.organisation}) dispatched to ${dispatch.targetLocation}.`);
         } catch (error) {
             Alert.alert("Unable to dispatch team", error instanceof Error ? error.message : "Please check the dispatch details.");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -72,7 +92,7 @@ export function AssignRescueTeamScreen() {
                 <View style={styles.info}><Icon color={colors.primary} icon={Info} size={17} /><Text style={styles.infoText}>The team status will change to Dispatched after confirmation.</Text></View>
                 <View style={styles.actions}>
                     <Pressable accessibilityRole="button" onPress={() => router.push(emergencyCoordinationRoutes.activeEmergency as Href)} style={styles.cancel} testID="cancel-dispatch"><Text style={styles.cancelText}>Cancel</Text></Pressable>
-                    <Pressable accessibilityRole="button" disabled={!selectedTeam || selectedTeam.status !== "Available" || !target || !mission.trim()} onPress={handleDispatch} style={[styles.dispatch, (!selectedTeam || selectedTeam.status !== "Available" || !target || !mission.trim()) && styles.disabled]} testID="dispatch-team"><Text style={styles.dispatchText}>Dispatch team</Text><Icon color={colors.white} icon={ArrowRight} size={16} /></Pressable>
+                    <Pressable accessibilityRole="button" disabled={submitting || !selectedTeam || selectedTeam.status !== "Available" || !target || !mission.trim()} onPress={handleDispatch} style={[styles.dispatch, (submitting || !selectedTeam || selectedTeam.status !== "Available" || !target || !mission.trim()) && styles.disabled]} testID="dispatch-team"><Text style={styles.dispatchText}>{submitting ? "Dispatching…" : "Dispatch team"}</Text><Icon color={colors.white} icon={ArrowRight} size={16} /></Pressable>
                 </View>
             </Card>
         </View>

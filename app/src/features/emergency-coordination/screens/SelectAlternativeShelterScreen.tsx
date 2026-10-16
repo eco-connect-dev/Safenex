@@ -11,6 +11,7 @@ import { useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -554,10 +555,17 @@ const styles = StyleSheet.create({
         borderRadius: radii.lg,
         borderWidth: 1,
         padding: spacing.xl,
-        shadowColor: "#0F172A",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 3,
+        ...Platform.select({
+            web: {
+                boxShadow: "0 1px 3px rgba(15, 23, 42, 0.04)",
+            },
+            default: {
+                shadowColor: "#0F172A",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.04,
+                shadowRadius: 3,
+            },
+        }),
     },
     cardHeaderRow: {
         alignItems: "flex-start",

@@ -1,20 +1,21 @@
 import { router, type Href } from "expo-router";
 import { ArrowRight, CheckCircle2, ChevronDown, Info } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 
 import { Card, Icon } from "@/src/components/ui";
 import { colors, radii, spacing, typography } from "@/src/theme";
 import { useActiveEmergency } from "../hooks/useActiveEmergency";
-import { allocateReliefResource, getReliefResources, type ReliefResource } from "../services/emergencyCoordinationService";
+import { createReliefAllocation, fetchReliefResources, getReliefResources, type ReliefResource } from "../services/emergencyCoordinationService";
 import { emergencyCoordinationRoutes } from "../routes";
 
 const distributionLocations = ["Mawanella Sports Complex", "Kegalle Central College", "Rambukkana Youth Centre", "Ruwanwella Vidyalaya"];
 
 export function AllocateReliefResourcesScreen() {
     const { width } = useWindowDimensions();
-    const { data } = useActiveEmergency();
+    const { data, source } = useActiveEmergency();
     const [resources, setResources] = useState<ReliefResource[]>(getReliefResources());
+    const [submitting, setSubmitting] = useState(false);
     const [resourceId, setResourceId] = useState("food-packs");
     const [quantityText, setQuantityText] = useState("200");
     const [location, setLocation] = useState(distributionLocations[0]);
@@ -30,15 +31,26 @@ export function AllocateReliefResourcesScreen() {
     const isWide = width >= 900;
     const stockText = useMemo(() => selected ? `Stock check: ${selected.available.toLocaleString()} ${selected.name.toLowerCase()} available from ${selected.organisation}, ${remaining.toLocaleString()} will remain after this allocation.` : "Select a resource to view its available stock.", [selected, remaining]);
 
-    const confirm = () => {
+    useEffect(() => {
+        let current = true;
+        fetchReliefResources().then((rows) => { if (current) setResources(rows); })
+            .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Unable to load relief stock."));
+        return () => { current = false; };
+    }, []);
+
+    const confirm = async () => {
         if (!withinStock) return;
+        if (submitting) return;
+        setSubmitting(true);
         try {
-            const allocation = allocateReliefResource({ resourceId, quantity, location });
-            setResources(getReliefResources());
+            const allocation = await createReliefAllocation({ resourceId, quantity, location }, source === "supabase" ? data?.event.id : undefined);
+            setResources(await fetchReliefResources());
             setSuccess(`${allocation.quantity.toLocaleString()} ${allocation.resource.toLowerCase()} allocated to ${allocation.location}.`);
             setError("");
         } catch (allocationError) {
             setError(allocationError instanceof Error ? allocationError.message : "Unable to record this allocation.");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -68,7 +80,7 @@ export function AllocateReliefResourcesScreen() {
                 {locationOpen ? <View style={styles.menu} testID="distribution-location-menu">{distributionLocations.map((item) => <Pressable key={item} accessibilityRole="button" onPress={() => { setLocation(item); setLocationOpen(false); }} style={styles.option} testID={`distribution-location-${item}`}><Text style={styles.value}>{item}</Text></Pressable>)}</View> : null}
                 <View style={[styles.notice, !withinStock && styles.warning]}><Icon color={withinStock ? colors.primary : colors.amber} icon={Info} size={17} /><Text style={[styles.noticeText, !withinStock && styles.warningText]} testID="stock-check">{stockText}</Text></View>
                 {error ? <Text accessibilityRole="alert" style={styles.error} testID="allocation-error">{error}</Text> : null}
-                <View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => router.push(emergencyCoordinationRoutes.activeEmergency as Href)} style={styles.cancel} testID="cancel-allocation"><Text style={styles.cancelText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" disabled={!withinStock} onPress={confirm} style={[styles.confirm, !withinStock && styles.disabled]} testID="confirm-allocation"><Text style={styles.confirmText}>Confirm allocation</Text><Icon color={colors.white} icon={ArrowRight} size={16} /></Pressable></View>
+                <View style={styles.actions}><Pressable accessibilityRole="button" onPress={() => router.push(emergencyCoordinationRoutes.activeEmergency as Href)} style={styles.cancel} testID="cancel-allocation"><Text style={styles.cancelText}>Cancel</Text></Pressable><Pressable accessibilityRole="button" disabled={!withinStock || submitting} onPress={confirm} style={[styles.confirm, (!withinStock || submitting) && styles.disabled]} testID="confirm-allocation"><Text style={styles.confirmText}>{submitting ? "Recording…" : "Confirm allocation"}</Text><Icon color={colors.white} icon={ArrowRight} size={16} /></Pressable></View>
             </Card>
         </View>
         <View style={styles.valid}><Icon color={colors.green} icon={CheckCircle2} size={17} /><Text style={styles.validText}>{withinStock ? "Requested quantity is within the available inventory. Confirm to record the allocation and update remaining stock." : "Enter a whole quantity within the available inventory to continue."}</Text></View>

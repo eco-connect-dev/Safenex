@@ -5,11 +5,19 @@ import { router } from "expo-router";
 import { AssignRescueTeamScreen } from "@/src/features/emergency-coordination/screens/AssignRescueTeamScreen";
 import { useActiveEmergency } from "@/src/features/emergency-coordination/hooks/useActiveEmergency";
 import { emergencyCoordinationRoutes } from "@/src/features/emergency-coordination/routes";
-import { dispatchRescueTeam, getRescueDispatches, getRescueTeams, resetInMemoryRescueTeams } from "@/src/features/emergency-coordination/services/emergencyCoordinationService";
+import { createRescueDispatch, dispatchRescueTeam, getRescueDispatches, getRescueTeams, resetInMemoryRescueTeams } from "@/src/features/emergency-coordination/services/emergencyCoordinationService";
 import { sampleActiveEmergency } from "@/src/features/emergency-coordination/sampleData";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
 jest.mock("@/src/features/emergency-coordination/hooks/useActiveEmergency", () => ({ useActiveEmergency: jest.fn() }));
+jest.mock("@/src/features/emergency-coordination/services/emergencyCoordinationService", () => {
+    const actual = jest.requireActual("@/src/features/emergency-coordination/services/emergencyCoordinationService");
+    return {
+        ...actual,
+        fetchRescueTeams: jest.fn(async () => actual.getRescueTeams()),
+        createRescueDispatch: jest.fn(async (input: Parameters<typeof actual.dispatchRescueTeam>[0]) => actual.dispatchRescueTeam(input)),
+    };
+});
 
 const mockedPush = router.push as jest.Mock;
 const mockedUseActiveEmergency = useActiveEmergency as jest.MockedFunction<typeof useActiveEmergency>;
@@ -35,6 +43,7 @@ describe("AssignRescueTeamScreen", () => {
         await fireEvent.changeText(screen.getByTestId("mission-details"), "Assist local evacuation.");
         await fireEvent.press(screen.getByTestId("dispatch-team"));
         await waitFor(() => expect(getRescueDispatches()).toHaveLength(1));
+        expect(createRescueDispatch).toHaveBeenCalledWith({ teamId: "RT-02", targetLocation: "Mawanella", missionDetails: "Assist local evacuation." }, undefined);
         expect(getRescueDispatches()[0]).toMatchObject({ teamId: "RT-02", targetLocation: "Mawanella", missionDetails: "Assist local evacuation." });
         expect(getRescueTeams().find((team) => team.id === "RT-02")?.status).toBe("Dispatched");
 

@@ -1,6 +1,6 @@
 import { router, type Href } from "expo-router";
 import { ArrowRight, CheckCircle2, Info } from "lucide-react-native";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { Button, Card, Icon } from "@/src/components/ui";
@@ -8,7 +8,7 @@ import { colors, radii, spacing, typography } from "@/src/theme";
 import { useActiveEmergency } from "../hooks/useActiveEmergency";
 import { useShelters } from "../hooks/useShelters";
 import { emergencyCoordinationRoutes } from "../routes";
-import { getReliefAllocations, getRescueDispatches } from "../services/emergencyCoordinationService";
+import { fetchReliefAllocations, fetchRescueDispatches, type ReliefAllocation, type RescueDispatch } from "../services/emergencyCoordinationService";
 import { OperationsMap } from "../components/OperationsMap";
 import { coordinatesForPlace, type OperationsMapFeature } from "../components/operationsMapTypes";
 
@@ -16,39 +16,52 @@ type Activity = { id: string; time: string; activity: string; status: string; so
 
 export function OperationalOverviewScreen() {
     const { width } = useWindowDimensions();
-    const { data } = useActiveEmergency();
+    const { data, source } = useActiveEmergency();
     const { shelters, totalActiveShelters } = useShelters();
-    const rescueDispatches = getRescueDispatches();
-    const reliefAllocations = getReliefAllocations();
+    const [rescueDispatches, setRescueDispatches] = useState<RescueDispatch[]>([]);
+    const [reliefAllocations, setReliefAllocations] = useState<ReliefAllocation[]>([]);
     const event = data?.event;
     const isWide = width >= 900;
+
+    useEffect(() => {
+        let current = true;
+        const eventId = source === "supabase" ? data?.event.id : undefined;
+        Promise.all([fetchRescueDispatches(eventId), fetchReliefAllocations(eventId)])
+            .then(([dispatches, allocations]) => {
+                if (!current) return;
+                setRescueDispatches(dispatches);
+                setReliefAllocations(allocations);
+            })
+            .catch(() => {
+                if (!current) return;
+                setRescueDispatches([]);
+                setReliefAllocations([]);
+            });
+        return () => { current = false; };
+    }, [data?.event.id, source]);
     const latestDispatch = rescueDispatches[0];
     const latestAllocation = reliefAllocations[0];
     const coordinationShelter = shelters.find((shelter) => shelter.name.includes("Mawanella"));
     const peopleAssisted = 1850 + shelters.reduce((total, shelter) => total + (shelter.currentOccupancy - (shelter.id === "s1" ? 650 : shelter.id === "s2" ? 420 : shelter.id === "s3" ? 500 : shelter.id === "s4" ? 300 : shelter.id === "s5" ? 180 : 350)), 0);
     const reliefAllocated = (event?.reliefItemsAllocated ?? 1200) + reliefAllocations.reduce((total, item) => total + item.quantity, 0);
     const mapFeatures = useMemo<OperationsMapFeature[]>(() => {
-        const dispatches = getRescueDispatches();
-        const allocations = getReliefAllocations();
         return [
             ...(data?.locations ?? []).map((location) => ({ id: location.id, name: location.name, latitude: location.latitude, longitude: location.longitude, category: location.isEpicenter ? "hazard" as const : "location" as const, detail: location.isEpicenter ? "Flood epicentre" : "Affected response location" })),
             ...shelters.map((shelter) => ({ id: `shelter-${shelter.id}`, name: shelter.name, ...coordinatesForPlace(shelter.location), category: "shelter" as const, detail: `${shelter.currentOccupancy.toLocaleString()} / ${shelter.capacity.toLocaleString()} occupants` })),
-            ...dispatches.map((dispatch) => ({ id: `dispatch-${dispatch.teamId}`, name: `${dispatch.teamId} · ${dispatch.targetLocation}`, ...coordinatesForPlace(dispatch.targetLocation), category: "rescue" as const, detail: dispatch.missionDetails })),
-            ...allocations.map((allocation) => ({ id: allocation.id, name: `${allocation.resource} · ${allocation.location}`, ...coordinatesForPlace(allocation.location), category: "resource" as const, detail: `${allocation.quantity.toLocaleString()} from ${allocation.organisation}` })),
+            ...rescueDispatches.map((dispatch) => ({ id: `dispatch-${dispatch.teamId}`, name: `${dispatch.teamId} · ${dispatch.targetLocation}`, ...coordinatesForPlace(dispatch.targetLocation), category: "rescue" as const, detail: dispatch.missionDetails })),
+            ...reliefAllocations.map((allocation) => ({ id: allocation.id, name: `${allocation.resource} · ${allocation.location}`, ...coordinatesForPlace(allocation.location), category: "resource" as const, detail: `${allocation.quantity.toLocaleString()} from ${allocation.organisation}` })),
         ];
-    }, [data?.locations, shelters]);
+    }, [data?.locations, shelters, rescueDispatches, reliefAllocations]);
 
     const activities = useMemo<Activity[]>(() => {
-        const allocations = getReliefAllocations();
-        const dispatches = getRescueDispatches();
         const operational: Activity[] = [
-            ...allocations.map((allocation) => ({ id: allocation.id, time: new Date(allocation.allocatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: `${allocation.quantity.toLocaleString()} ${allocation.resource.toLowerCase()} allocated · ${allocation.organisation} → ${allocation.location}`, status: "Recorded", sort: Date.parse(allocation.allocatedAt) })),
-            ...dispatches.map((dispatch) => ({ id: `${dispatch.teamId}-${dispatch.dispatchedAt}`, time: new Date(dispatch.dispatchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: `${dispatch.teamId} dispatched → ${dispatch.targetLocation}`, status: "Dispatched", sort: Date.parse(dispatch.dispatchedAt) })),
+            ...reliefAllocations.map((allocation) => ({ id: allocation.id, time: new Date(allocation.allocatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: `${allocation.quantity.toLocaleString()} ${allocation.resource.toLowerCase()} allocated · ${allocation.organisation} → ${allocation.location}`, status: "Recorded", sort: Date.parse(allocation.allocatedAt) })),
+            ...rescueDispatches.map((dispatch) => ({ id: `${dispatch.teamId}-${dispatch.dispatchedAt}`, time: new Date(dispatch.dispatchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: `${dispatch.teamId} dispatched → ${dispatch.targetLocation}`, status: "Dispatched", sort: Date.parse(dispatch.dispatchedAt) })),
             ...(data?.updates ?? []).slice(0, 4).map((update) => ({ id: update.id, time: new Date(update.occurredAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }), activity: update.text, status: update.status, sort: Date.parse(update.occurredAt) })),
             { id: "shelter-occupancy", time: "12:30", activity: "Shelter occupancy updated · District data refreshed", status: "Updated", sort: 0 },
         ];
         return [...operational].sort((a, b) => b.sort - a.sort).slice(0, 6);
-    }, [data?.updates]);
+    }, [data?.updates, rescueDispatches, reliefAllocations]);
 
     const metrics = [
         { label: "Shelters active", value: totalActiveShelters || event?.sheltersActive || 6 },

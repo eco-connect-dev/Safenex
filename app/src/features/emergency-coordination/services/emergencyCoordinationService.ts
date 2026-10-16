@@ -92,6 +92,113 @@ export function allocateReliefResource(input: { resourceId: string; quantity: nu
     return allocation;
 }
 
+type RescueDispatchInput = Omit<RescueDispatch, "dispatchedAt">;
+
+function readRpcRow<T>(data: T | T[] | null): T | null {
+    return Array.isArray(data) ? data[0] ?? null : data;
+}
+
+function canFallBackForWrite(error: unknown): boolean {
+    if (error instanceof TypeError) return true;
+    if (error instanceof Error && /Missing EXPO_PUBLIC_SUPABASE_|Failed to fetch|Network request failed/i.test(error.message)) return true;
+    const code = (error as { code?: string } | null)?.code;
+    return code === "42P01" || code === "PGRST202" || code === "PGRST205";
+}
+
+export async function fetchRescueTeams(): Promise<RescueTeam[]> {
+    try {
+        const { supabase } = await import("@/lib/supabase");
+        const { data, error } = await supabase.from("rescue_teams").select("*").order("id");
+        if (error) throw error;
+        return (data ?? []).map((row: any) => ({ id: row.id, organisation: row.organisation, status: row.status, location: row.location }));
+    } catch (error) {
+        if (ALLOW_SAMPLE_FALLBACK) return getRescueTeams();
+        throw error;
+    }
+}
+
+export async function fetchRescueDispatches(eventId?: string): Promise<RescueDispatch[]> {
+    try {
+        const { supabase } = await import("@/lib/supabase");
+        let query = supabase.from("rescue_dispatches").select("*").order("dispatched_at", { ascending: false });
+        query = eventId ? query.eq("event_id", eventId) : query.is("event_id", null);
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data ?? []).map((row: any) => ({ teamId: row.team_id, targetLocation: row.target_location, missionDetails: row.mission_details, dispatchedAt: row.dispatched_at }));
+    } catch (error) {
+        if (ALLOW_SAMPLE_FALLBACK) return getRescueDispatches();
+        throw error;
+    }
+}
+
+export async function createRescueDispatch(input: RescueDispatchInput, eventId?: string): Promise<RescueDispatch> {
+    if (!input.targetLocation.trim()) throw new Error("Select a target location.");
+    if (!input.missionDetails.trim()) throw new Error("Enter mission details before dispatching.");
+    try {
+        const { supabase } = await import("@/lib/supabase");
+        const { data, error } = await supabase.rpc("dispatch_rescue_team", {
+            p_team_id: input.teamId,
+            p_target_location: input.targetLocation.trim(),
+            p_mission_details: input.missionDetails.trim(),
+            p_event_id: eventId ?? null,
+        });
+        if (error) throw error;
+        const row = readRpcRow(data as any);
+        if (!row) throw new Error("The dispatch was not returned by the database.");
+        return { teamId: row.team_id, targetLocation: row.target_location, missionDetails: row.mission_details, dispatchedAt: row.dispatched_at };
+    } catch (error) {
+        if (ALLOW_SAMPLE_FALLBACK && canFallBackForWrite(error)) return dispatchRescueTeam(input);
+        throw error;
+    }
+}
+
+export async function fetchReliefResources(): Promise<ReliefResource[]> {
+    try {
+        const { supabase } = await import("@/lib/supabase");
+        const { data, error } = await supabase.from("relief_resources").select("*").order("name");
+        if (error) throw error;
+        return (data ?? []).map((row: any) => ({ id: row.id, name: row.name, organisation: row.organisation, unit: row.unit ?? "", available: Number(row.available_quantity) }));
+    } catch (error) {
+        if (ALLOW_SAMPLE_FALLBACK) return getReliefResources();
+        throw error;
+    }
+}
+
+export async function fetchReliefAllocations(eventId?: string): Promise<ReliefAllocation[]> {
+    try {
+        const { supabase } = await import("@/lib/supabase");
+        let query = supabase.from("relief_allocations").select("*").order("allocated_at", { ascending: false });
+        query = eventId ? query.eq("event_id", eventId) : query.is("event_id", null);
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data ?? []).map((row: any) => ({ id: row.id, resourceId: row.resource_id, resource: row.resource, organisation: row.organisation, quantity: Number(row.quantity), location: row.location, allocatedAt: row.allocated_at }));
+    } catch (error) {
+        if (ALLOW_SAMPLE_FALLBACK) return getReliefAllocations();
+        throw error;
+    }
+}
+
+export async function createReliefAllocation(input: { resourceId: string; quantity: number; location: string }, eventId?: string): Promise<ReliefAllocation> {
+    if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new Error("Enter a whole quantity greater than zero.");
+    if (!input.location.trim()) throw new Error("Select a distribution location.");
+    try {
+        const { supabase } = await import("@/lib/supabase");
+        const { data, error } = await supabase.rpc("allocate_relief_resource", {
+            p_resource_id: input.resourceId,
+            p_quantity: input.quantity,
+            p_location: input.location.trim(),
+            p_event_id: eventId ?? null,
+        });
+        if (error) throw error;
+        const row = readRpcRow(data as any);
+        if (!row) throw new Error("The allocation was not returned by the database.");
+        return { id: row.id, resourceId: row.resource_id, resource: row.resource, organisation: row.organisation, quantity: Number(row.quantity), location: row.location, allocatedAt: row.allocated_at };
+    } catch (error) {
+        if (ALLOW_SAMPLE_FALLBACK && canFallBackForWrite(error)) return allocateReliefResource(input);
+        throw error;
+    }
+}
+
 export function resetInMemoryShelters(): void {
     inMemoryShelters = JSON.parse(JSON.stringify(sampleShelters));
 }

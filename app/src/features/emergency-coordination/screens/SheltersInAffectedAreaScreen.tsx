@@ -3,6 +3,7 @@ import { Info, Search, X } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import {
     ActivityIndicator,
+    Platform,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -742,10 +743,17 @@ const styles = StyleSheet.create({
     },
     statusTabActive: {
         backgroundColor: colors.surface,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
+        ...Platform.select({
+            web: {
+                boxShadow: "0 1px 2px rgba(0, 0, 0, 0.08)",
+            },
+            default: {
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.08,
+                shadowRadius: 2,
+            },
+        }),
     },
     statusTabText: {
         color: "#64748B",
