@@ -58,14 +58,11 @@ export function GroundReportsScreen({ navigation }: Props<"GroundReports">) {
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.pageContent}>
-        <View style={styles.pageHeader}>
-          <View>
-            <Text style={styles.title}>Pending Reports</Text>
-            <Text style={styles.subtitle}>
-              Review citizen evidence before making a verification decision.
-            </Text>
-          </View>
-          <Text style={styles.officer}>District Officer · DMC</Text>
+        <View>
+          <Text style={styles.title}>Pending Reports</Text>
+          <Text style={styles.subtitle}>
+            Review citizen evidence before making a verification decision.
+          </Text>
         </View>
 
         <Notice
@@ -304,11 +301,6 @@ function DetailLine({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.background, flex: 1 },
   pageContent: { gap: spacing.xl, padding: spacing.xxl },
-  pageHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
   title: {
     color: colors.navy,
     fontSize: typography.sizes.xxl,
@@ -318,11 +310,6 @@ const styles = StyleSheet.create({
     color: "#6B829C",
     fontSize: typography.sizes.md,
     marginTop: spacing.sm,
-  },
-  officer: {
-    color: colors.textSecondary,
-    fontSize: typography.sizes.sm,
-    fontWeight: "700",
   },
   listCard: { gap: spacing.xl, padding: spacing.xl },
   sectionTitle: {
