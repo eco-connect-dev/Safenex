@@ -145,12 +145,30 @@ export function SheltersInAffectedAreaScreen() {
 
             {/* Page Header */}
             <View style={styles.pageHeader}>
-                <Text style={styles.title} testID="screen-title">
-                    Shelters in Affected Area ({district})
-                </Text>
-                <Text style={styles.subtitle} testID="screen-subtitle">
-                    Compare registered shelter capacity and current occupancy before selecting a suitable shelter.
-                </Text>
+                <View style={styles.pageHeaderText}>
+                    <Text style={styles.title} testID="screen-title">
+                        Shelters in Affected Area ({district})
+                    </Text>
+                    <Text style={styles.subtitle} testID="screen-subtitle">
+                        Compare registered shelter capacity and current occupancy before selecting a suitable shelter.
+                    </Text>
+                </View>
+                <View style={styles.pageHeaderActions}>
+                    <Button
+                        label="Allocate Evacuees"
+                        onPress={() => router.push(emergencyCoordinationRoutes.allocateEvacuees() as Href)}
+                        size="sm"
+                        testID="btn-header-allocate"
+                        variant="primary"
+                    />
+                    <Button
+                        label="Alternative Shelters"
+                        onPress={() => router.push(emergencyCoordinationRoutes.alternativeShelter() as Href)}
+                        size="sm"
+                        testID="btn-header-alternative"
+                        variant="outline"
+                    />
+                </View>
             </View>
 
             {/* Main Shelters Card */}
@@ -347,13 +365,32 @@ export function SheltersInAffectedAreaScreen() {
                                 {/* Action Column */}
                                 <View style={styles.colAction}>
                                     {isFull ? (
-                                        <View
-                                            style={styles.unavailableButton}
-                                            testID={`btn-unavailable-${shelter.id}`}
-                                        >
-                                            <Text style={styles.unavailableButtonText}>
-                                                Unavailable
-                                            </Text>
+                                        <View style={styles.unavailableActionBox}>
+                                            <View
+                                                style={styles.unavailableButton}
+                                                testID={`btn-unavailable-${shelter.id}`}
+                                            >
+                                                <Text style={styles.unavailableButtonText}>
+                                                    Unavailable
+                                                </Text>
+                                            </View>
+                                            <Pressable
+                                                accessibilityRole="button"
+                                                onPress={() =>
+                                                    router.push(
+                                                        emergencyCoordinationRoutes.alternativeShelter(
+                                                            shelter.id,
+                                                            200,
+                                                        ) as Href,
+                                                    )
+                                                }
+                                                style={styles.alternativeShelterLink}
+                                                testID={`btn-alternative-${shelter.id}`}
+                                            >
+                                                <Text style={styles.alternativeShelterLinkText}>
+                                                    Alternative →
+                                                </Text>
+                                            </Pressable>
                                         </View>
                                     ) : (
                                         <Pressable
@@ -507,6 +544,19 @@ export function SheltersInAffectedAreaScreen() {
                             testID="confirm-allocation-button"
                         />
                         <Button
+                            label="Open Full Allocation Page →"
+                            onPress={() =>
+                                router.push(
+                                    emergencyCoordinationRoutes.allocateEvacuees(
+                                        selectedShelter.id,
+                                        isCountValid ? parsedCount : 25,
+                                    ) as Href,
+                                )
+                            }
+                            testID="open-full-allocation-page-button"
+                            variant="secondary"
+                        />
+                        <Button
                             label="Cancel"
                             onPress={() => setSelectedShelterId(null)}
                             testID="cancel-allocation-button"
@@ -593,7 +643,22 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
     pageHeader: {
+        alignItems: "flex-start",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.lg,
+        justifyContent: "space-between",
+    },
+    pageHeaderText: {
+        flex: 1,
         gap: spacing.xs,
+        minWidth: 280,
+    },
+    pageHeaderActions: {
+        alignItems: "center",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
     },
     title: {
         color: "#0F172A",
@@ -836,6 +901,18 @@ const styles = StyleSheet.create({
         minWidth: 96,
         opacity: 0.65,
         paddingHorizontal: spacing.md,
+    },
+    unavailableActionBox: {
+        alignItems: "center",
+        gap: 4,
+    },
+    alternativeShelterLink: {
+        paddingVertical: 2,
+    },
+    alternativeShelterLinkText: {
+        color: colors.primary,
+        fontSize: typography.sizes.xs,
+        fontWeight: "700",
     },
     unavailableButtonText: {
         color: "#94A3B8",

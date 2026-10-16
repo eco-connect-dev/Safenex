@@ -124,6 +124,41 @@ export function ActiveEmergencyScreen() {
                 <OperationalUpdatesCard updates={updates} />
             </View>
 
+            {/* Shelter & Evacuation Operations Quick Navigation Card */}
+            <Card style={styles.operationsCard} testID="shelter-operations-card">
+                <View style={styles.operationsHeader}>
+                    <View style={styles.operationsHeaderText}>
+                        <Text style={styles.operationsTitle}>Shelter & Evacuation Operations</Text>
+                        <Text style={styles.operationsSubtitle}>
+                            Coordinate registered emergency shelters in {event.district}, allocate evacuees, or find alternative shelters when capacity is reached.
+                        </Text>
+                    </View>
+                </View>
+                <View style={styles.operationsButtonsRow}>
+                    <Button
+                        label="Shelters in Affected Area"
+                        onPress={() => go(emergencyCoordinationRoutes.shelters(event.id))}
+                        size="md"
+                        testID="btn-nav-shelters"
+                        variant="outline"
+                    />
+                    <Button
+                        label="Allocate Evacuees"
+                        onPress={() => go(emergencyCoordinationRoutes.allocateEvacuees())}
+                        size="md"
+                        testID="btn-nav-allocate"
+                        variant="outline"
+                    />
+                    <Button
+                        label="Select Alternative Shelter →"
+                        onPress={() => go(emergencyCoordinationRoutes.alternativeShelter())}
+                        size="md"
+                        testID="btn-nav-alternative"
+                        variant="primary"
+                    />
+                </View>
+            </Card>
+
             <Card style={styles.footer} testID="action-bar">
                 <View style={styles.footerLeft}>
                     <Button
@@ -160,6 +195,38 @@ const styles = StyleSheet.create({
     sampleText: { color: colors.amber, fontSize: typography.sizes.sm, fontWeight: "600" },
     row: { alignItems: "stretch", flexDirection: "row", flexWrap: "wrap", gap: spacing.xl },
     metric: { flexGrow: 1, flexBasis: 200 },
+    operationsCard: {
+        backgroundColor: colors.surface,
+        borderColor: colors.border,
+        borderRadius: 12,
+        borderWidth: 1,
+        gap: spacing.lg,
+        padding: spacing.xl,
+    },
+    operationsHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+    },
+    operationsHeaderText: {
+        flex: 1,
+        gap: 4,
+    },
+    operationsTitle: {
+        color: colors.text,
+        fontSize: typography.sizes.md,
+        fontWeight: "700",
+    },
+    operationsSubtitle: {
+        color: colors.textSecondary,
+        fontSize: typography.sizes.sm,
+        lineHeight: 20,
+    },
+    operationsButtonsRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.md,
+    },
     footer: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: spacing.lg, justifyContent: "space-between" },
     footerLeft: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: spacing.lg },
     footerHint: { color: colors.textSecondary, fontSize: typography.sizes.xs },

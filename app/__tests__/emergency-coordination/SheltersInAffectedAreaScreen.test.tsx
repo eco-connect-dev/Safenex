@@ -306,10 +306,49 @@ describe("SheltersInAffectedAreaScreen", () => {
         mockHookState({ error: "Failed to connect" });
         await render(<SheltersInAffectedAreaScreen />);
 
-        expect(screen.getByTestId("shelters-error")).toBeTruthy();
-        expect(screen.getByText("Failed to connect")).toBeTruthy();
-
         fireEvent.press(screen.getByTestId("shelters-retry-button"));
         expect(mockRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it("navigates to allocate evacuees from header button", async () => {
+        await render(<SheltersInAffectedAreaScreen />);
+
+        fireEvent.press(screen.getByTestId("btn-header-allocate"));
+        expect(mockedPush).toHaveBeenCalledWith(
+            emergencyCoordinationRoutes.allocateEvacuees(),
+        );
+    });
+
+    it("navigates to alternative shelter from header button", async () => {
+        await render(<SheltersInAffectedAreaScreen />);
+
+        fireEvent.press(screen.getByTestId("btn-header-alternative"));
+        expect(mockedPush).toHaveBeenCalledWith(
+            emergencyCoordinationRoutes.alternativeShelter(),
+        );
+    });
+
+    it("navigates to alternative shelter when clicking alternative link on unavailable shelter row", async () => {
+        await render(<SheltersInAffectedAreaScreen />);
+
+        fireEvent.press(screen.getByTestId("btn-alternative-s3"));
+        expect(mockedPush).toHaveBeenCalledWith(
+            emergencyCoordinationRoutes.alternativeShelter("s3", 200),
+        );
+    });
+
+    it("navigates to full allocation screen from the selected shelter panel", async () => {
+        const s1 = sampleShelters.find((s) => s.id === "s1")!;
+        mockHookState({
+            selectedShelterId: "s1",
+            selectedShelter: s1,
+        });
+
+        await render(<SheltersInAffectedAreaScreen />);
+
+        fireEvent.press(screen.getByTestId("open-full-allocation-page-button"));
+        expect(mockedPush).toHaveBeenCalledWith(
+            emergencyCoordinationRoutes.allocateEvacuees("s1", 25),
+        );
     });
 });

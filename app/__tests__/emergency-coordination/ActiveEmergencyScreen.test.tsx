@@ -254,4 +254,29 @@ describe("ActiveEmergencyScreen", () => {
         expect(screen.getByText("No priority needs recorded.")).toBeTruthy();
         expect(screen.getByText("No updates yet.")).toBeTruthy();
     });
+
+    it("navigates to shelters, allocate evacuees, and alternative shelter from operations card", async () => {
+        await render(<ActiveEmergencyScreen />);
+
+        expect(screen.getByTestId("shelter-operations-card")).toBeTruthy();
+        expect(screen.getByText("Shelter & Evacuation Operations")).toBeTruthy();
+
+        // 1. Navigate to shelters
+        fireEvent.press(screen.getByTestId("btn-nav-shelters"));
+        expect(mockedPush).toHaveBeenCalledWith(
+            emergencyCoordinationRoutes.shelters(SAMPLE_EVENT_ID),
+        );
+
+        // 2. Navigate to allocate evacuees
+        fireEvent.press(screen.getByTestId("btn-nav-allocate"));
+        expect(mockedPush).toHaveBeenCalledWith(
+            emergencyCoordinationRoutes.allocateEvacuees(),
+        );
+
+        // 3. Navigate to select alternative shelter
+        fireEvent.press(screen.getByTestId("btn-nav-alternative"));
+        expect(mockedPush).toHaveBeenCalledWith(
+            emergencyCoordinationRoutes.alternativeShelter(),
+        );
+    });
 });
