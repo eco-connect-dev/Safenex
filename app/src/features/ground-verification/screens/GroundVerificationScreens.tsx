@@ -58,14 +58,11 @@ export function GroundReportsScreen({ navigation }: Props<"GroundReports">) {
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.pageContent}>
-        <View style={styles.pageHeader}>
-          <View>
-            <Text style={styles.title}>Pending Reports</Text>
-            <Text style={styles.subtitle}>
-              Review citizen evidence before making a verification decision.
-            </Text>
-          </View>
-          <Text style={styles.officer}>District Officer · DMC</Text>
+        <View>
+          <Text style={styles.title}>Pending Reports</Text>
+          <Text style={styles.subtitle}>
+            Review citizen evidence before making a verification decision.
+          </Text>
         </View>
 
         <Notice
@@ -173,13 +170,15 @@ function ReportListCard({
         </Text>
         <Text style={styles.reportMeta}>{report.role}</Text>
       </View>
-      <Badge label="Pending" tone="warning" />
-      <Button
-        label="Review report"
-        icon={ArrowRight}
-        onPress={onReview}
-        size="md"
-      />
+      <View style={styles.reportActions}>
+        <Badge label="Pending" tone="warning" />
+        <Button
+          label="Review report"
+          icon={ArrowRight}
+          onPress={onReview}
+          size="md"
+        />
+      </View>
     </View>
   );
 }
@@ -303,11 +302,11 @@ function DetailLine({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.background, flex: 1 },
-  pageContent: { gap: spacing.xl, padding: spacing.xxl },
-  pageHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    justifyContent: "space-between",
+  pageContent: {
+    gap: spacing.xl,
+    maxWidth: 1480,
+    padding: spacing.xxl,
+    width: "100%",
   },
   title: {
     color: colors.navy,
@@ -318,11 +317,6 @@ const styles = StyleSheet.create({
     color: "#6B829C",
     fontSize: typography.sizes.md,
     marginTop: spacing.sm,
-  },
-  officer: {
-    color: colors.textSecondary,
-    fontSize: typography.sizes.sm,
-    fontWeight: "700",
   },
   listCard: { gap: spacing.xl, padding: spacing.xl },
   sectionTitle: {
@@ -376,6 +370,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.xl,
     minHeight: 124,
     padding: spacing.xl,
@@ -406,9 +401,16 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: spacing.xs,
   },
-  reportInfo: { flex: 1, gap: spacing.sm },
+  reportInfo: { flex: 1, gap: spacing.sm, minWidth: 180 },
   reportTitle: { color: colors.navy, fontSize: typography.sizes.lg },
   reportMeta: { color: "#6B829C", fontSize: typography.sizes.sm },
+  reportActions: {
+    alignItems: "flex-end",
+    gap: spacing.md,
+    marginLeft: "auto",
+    minWidth: 150,
+    width: 150,
+  },
   footer: { color: "#6B829C", fontSize: typography.sizes.sm },
   empty: {
     color: colors.textSecondary,
@@ -423,6 +425,8 @@ const styles = StyleSheet.create({
   detailHeader: {
     alignItems: "flex-start",
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
     justifyContent: "space-between",
   },
   incidentTitle: {
@@ -475,6 +479,7 @@ const styles = StyleSheet.create({
   },
   decisionActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
     justifyContent: "flex-end",
     marginTop: spacing.lg,
