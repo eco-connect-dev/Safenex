@@ -1,5 +1,5 @@
 import { Download } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "@/src/components/ui";
@@ -20,36 +20,40 @@ export default function AnalyticsWebScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      setData(await getAnalyticsData(period));
-      setError("");
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load analytics data from Supabase.");
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    let active = true;
+    void getAnalyticsData(period)
+      .then((result) => {
+        if (!active) return;
+        setData(result);
+        setError("");
+      })
+      .catch((loadError: unknown) => {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "Could not load analytics data from Supabase.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, [period]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
-
   const windowStart = useMemo(() => periodStart(period), [period]);
-  const windowEvents = (data?.events ?? []).filter((event) => new Date(event.started_at) >= windowStart);
-  const activeEvents = (data?.events ?? []).filter((event) => event.status === "active");
-  const openEvents = (data?.events ?? []).filter((event) => event.status !== "resolved");
-  const activeEventIds = new Set(openEvents.map((event) => event.id));
-  const liveShelters = (data?.shelters ?? []).filter((shelter) => !shelter.event_id || activeEventIds.has(shelter.event_id));
+  const windowEvents = useMemo(() => (data?.events ?? []).filter((event) => new Date(event.started_at) >= windowStart), [data, windowStart]);
+  const activeEvents = useMemo(() => (data?.events ?? []).filter((event) => event.status === "active"), [data]);
+  const openEvents = useMemo(() => (data?.events ?? []).filter((event) => event.status !== "resolved"), [data]);
+  const activeEventIds = useMemo(() => new Set(openEvents.map((event) => event.id)), [openEvents]);
+  const liveShelters = useMemo(() => (data?.shelters ?? []).filter((shelter) => !shelter.event_id || activeEventIds.has(shelter.event_id)), [activeEventIds, data]);
   const occupancy = liveShelters.reduce((total, shelter) => total + Number(shelter.current_occupancy || 0), 0);
   const capacity = liveShelters.reduce((total, shelter) => total + Number(shelter.capacity || 0), 0);
   const utilization = capacity > 0 ? Math.round((occupancy / capacity) * 100) : 0;
-  const currentTeams = data?.rescueTeams ?? [];
+  const currentTeams = useMemo(() => data?.rescueTeams ?? [], [data]);
   const availableTeams = currentTeams.filter((team) => team.status.toLowerCase() === "available").length;
-  const rescueDispatches = data?.rescueDispatches ?? [];
-  const allocations = data?.allocations ?? [];
-  const warnings = data?.warnings ?? [];
+  const rescueDispatches = useMemo(() => data?.rescueDispatches ?? [], [data]);
+  const allocations = useMemo(() => data?.allocations ?? [], [data]);
+  const warnings = useMemo(() => data?.warnings ?? [], [data]);
   const districts = useMemo(() => summarizeDistricts(data, windowEvents, warnings, allocations, rescueDispatches), [data, windowEvents, warnings, allocations, rescueDispatches]);
-  const occupancyPoints = liveShelters.slice(0, 6).map((shelter) => shelter.capacity > 0 ? Math.min(100, (shelter.current_occupancy / shelter.capacity) * 100) : 0);
+  const occupancyPoints = useMemo(() => liveShelters.slice(0, 6).map((shelter) => shelter.capacity > 0 ? Math.min(100, (shelter.current_occupancy / shelter.capacity) * 100) : 0), [liveShelters]);
 
   const exportPdf = () => {
     if (!data) return;
@@ -74,7 +78,7 @@ export default function AnalyticsWebScreen() {
         <View style={styles.toolbar}>
           <View style={styles.periods}>
             {periods.map((option) => (
-              <Pressable key={option} onPress={() => setPeriod(option)} style={[styles.periodButton, period === option && styles.periodSelected]}>
+              <Pressable key={option} onPress={() => { setLoading(true); setPeriod(option); }} style={[styles.periodButton, period === option && styles.periodSelected]}>
                 <Text style={[styles.periodText, period === option && styles.periodTextSelected]}>{option}</Text>
               </Pressable>
             ))}
