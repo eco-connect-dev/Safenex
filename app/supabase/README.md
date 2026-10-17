@@ -7,3 +7,7 @@ The initial migration creates `hazards` and `hazard_warnings`, enables row level
 ## Analytics sample records
 
 To add non-destructive demo records for the Analytics & Reports page, run `queries/add_analytics_sample_data.sql` in the Supabase SQL Editor after the emergency coordination tables are present. The script uses fixed demo IDs and `ON CONFLICT DO NOTHING`, so rerunning it will not update or delete existing records. It adds examples for the Today, 7 days, and 30 days filters across emergency events, hazard warnings and reports, shelters, response updates, priority needs, relief inventory and allocations, and rescue teams and dispatches.
+
+## User profiles
+
+Apply `migrations/202610170001_user_profiles.sql` to create the protected `public.profiles` table, then apply `migrations/202610170002_profile_role.sql` to add the role field to an existing installation. The migrations create profile rows for new Supabase Auth users and backfill existing users without overwriting profile rows. Roles default to `citizen`; supported roles are `citizen`, `volunteer`, `duty_officer`, `district_officer`, `dmc_officer`, and `dmc_analyst`. Assign operational roles from a trusted administrator database session. Signed-in users can read and update only their own name, phone number, and district, and cannot change their role. Email remains managed by Supabase Auth and is shown read-only on the profile page.

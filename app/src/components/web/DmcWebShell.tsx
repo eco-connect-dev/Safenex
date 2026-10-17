@@ -1,14 +1,16 @@
 import {
   AlertTriangle,
   BarChart3,
+  ChevronDown,
   FileText,
   LayoutDashboard,
   LogOut,
+  UserRound,
   UsersRound,
 } from "lucide-react-native";
 import { router } from "expo-router";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "@/src/components/ui";
@@ -17,7 +19,7 @@ import { colors } from "@/src/theme";
 import { supabase } from "@/lib/supabase";
 
 type DmcWebShellProps = {
-  activeNav?: "dashboard" | "hazards" | "ground-reports" | "emergency-coordination" | "analytics";
+  activeNav?: "dashboard" | "hazards" | "ground-reports" | "emergency-coordination" | "analytics" | "profile";
   children: ReactNode;
   topbarTitle?: string;
   protocol?: string;
@@ -32,13 +34,43 @@ export function DmcWebShell({
   children,
   protocol = "PROTOCOL LEVEL 3",
   topbarTitle = "HAZARD ASSESSMENT & WARNING",
-  profileInitials = "RV",
-  profileName = "Capt. R. Vance · Commander",
-  profileSubtitle = "Duty Command HQ",
+  profileInitials,
+  profileName,
+  profileSubtitle,
   showTopbarSignOut = true,
 }: DmcWebShellProps) {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountRole, setAccountRole] = useState("citizen");
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const email = user.email ?? "";
+      let name = String(user.user_metadata?.full_name ?? "").trim();
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name,role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (typeof data?.full_name === "string" && data.full_name.trim()) name = data.full_name.trim();
+      if (active) {
+        setAccountName(name || email || "Safenex user");
+        setAccountEmail(email);
+        setAccountRole(typeof data?.role === "string" ? data.role : "citizen");
+      }
+    })().catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  const resolvedProfileName = profileName ?? (accountName || "Safenex user");
+  const resolvedProfileSubtitle = profileSubtitle ?? accountEmail;
+  const resolvedProfileInitials = profileInitials === undefined ? initialsFor(resolvedProfileName) : profileInitials;
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -99,6 +131,12 @@ export function DmcWebShell({
               onPress={() => router.push("/analytics" as never)}
               selected={activeNav === "analytics"}
             />
+            <NavItem
+              icon={UserRound}
+              label="My profile"
+              onPress={() => router.push("/profile" as never)}
+              selected={activeNav === "profile"}
+            />
           </View>
         </View>
         <View style={styles.sidebarFooter}>
@@ -124,21 +162,36 @@ export function DmcWebShell({
             ) : null}
           </Text>
           <View style={styles.topbarRight}>
-            <View style={styles.profile}>
-              {profileInitials ? (
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{profileInitials}</Text>
+            <View style={styles.profileMenuWrap}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open profile menu" accessibilityState={{ expanded: profileMenuOpen }} onPress={() => setProfileMenuOpen((open) => !open)} style={styles.profile}>
+                {resolvedProfileInitials ? (
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{resolvedProfileInitials}</Text>
+                  </View>
+                ) : null}
+                <Text style={styles.commander}>
+                  {resolvedProfileName}
+                  {resolvedProfileSubtitle ? (
+                    <>
+                      {"\n"}
+                      <Text style={styles.duty}>{resolvedProfileSubtitle}</Text>
+                    </>
+                  ) : null}
+                </Text>
+                <Icon color="#5E7595" icon={ChevronDown} size={16} />
+              </Pressable>
+              {profileMenuOpen ? (
+                <View style={styles.profileMenu}>
+                  <Text style={styles.profileMenuName}>{accountName || resolvedProfileName}</Text>
+                  {accountEmail ? <Text style={styles.profileMenuEmail}>{accountEmail}</Text> : null}
+                  <Text style={styles.profileMenuRole}>{formatRole(accountRole)}</Text>
+                  <View style={styles.profileMenuDivider} />
+                  <Pressable accessibilityRole="button" onPress={() => { setProfileMenuOpen(false); router.push("/profile" as never); }} style={({ pressed }) => [styles.profileMenuAction, pressed && styles.pressed]}>
+                    <Icon color={colors.primary} icon={UserRound} size={17} />
+                    <Text style={styles.profileMenuActionText}>Edit profile details</Text>
+                  </Pressable>
                 </View>
               ) : null}
-              <Text style={styles.commander}>
-                {profileName}
-                {profileSubtitle ? (
-                  <>
-                    {"\n"}
-                    <Text style={styles.duty}>{profileSubtitle}</Text>
-                  </>
-                ) : null}
-              </Text>
             </View>
             {showTopbarSignOut ? (
               <Pressable accessibilityRole="button" disabled={signingOut} onPress={() => void handleSignOut()} style={({ pressed }) => [styles.topbarSignOut, pressed && styles.pressed, signingOut && styles.disabled]}>
@@ -152,6 +205,24 @@ export function DmcWebShell({
       </View>
     </View>
   );
+}
+
+function initialsFor(name: string) {
+  return name
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function formatRole(role: string) {
+  if (role === "duty_officer") return "Duty Officer";
+  if (role === "district_officer") return "District Officer";
+  if (role === "dmc_officer") return "DMC Officer";
+  if (role === "dmc_analyst") return "DMC Analyst";
+  if (role === "volunteer") return "Community Volunteer";
+  return "Citizen";
 }
 
 function NavItem({
@@ -246,6 +317,9 @@ const styles = StyleSheet.create({
     minHeight: 76,
     justifyContent: "space-between",
     paddingHorizontal: 28,
+    position: "relative",
+    zIndex: 1000,
+    elevation: 20,
   },
   topbarTitle: {
     color: "#5E7595",
@@ -268,7 +342,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
   },
-  topbarRight: { alignItems: "center", flexDirection: "row", gap: 20 },
+  topbarRight: { alignItems: "center", flexDirection: "row", gap: 20, position: "relative", zIndex: 1001, elevation: 21 },
+  profileMenuWrap: { position: "relative", zIndex: 1002, elevation: 22 },
+  profileMenu: { backgroundColor: colors.white, borderColor: "#D8E1EC", borderRadius: 10, borderWidth: 1, elevation: 24, padding: 15, position: "absolute", right: 0, shadowColor: "#0E172B", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.13, shadowRadius: 12, top: 52, width: 265, zIndex: 1003 },
+  profileMenuName: { color: "#0B1424", fontSize: 14, fontWeight: "800" },
+  profileMenuEmail: { color: "#6B829C", fontSize: 11, marginTop: 3 },
+  profileMenuRole: { alignSelf: "flex-start", backgroundColor: "#EEF4FF", borderRadius: 12, color: colors.primary, fontSize: 10, fontWeight: "800", marginTop: 9, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 5 },
+  profileMenuDivider: { backgroundColor: "#E8EDF3", height: 1, marginVertical: 10 },
+  profileMenuAction: { alignItems: "center", flexDirection: "row", gap: 9, paddingVertical: 5 },
+  profileMenuActionText: { color: "#29405F", fontSize: 12, fontWeight: "700" },
   topbarSignOut: { alignItems: "center", borderColor: "#CBD5E1", borderRadius: 8, borderWidth: 1, flexDirection: "row", gap: 7, paddingHorizontal: 11, paddingVertical: 8 },
   topbarSignOutText: { color: colors.primary, fontSize: 12, fontWeight: "700" },
   pressed: { opacity: 0.75 },
