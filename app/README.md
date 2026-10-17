@@ -40,3 +40,16 @@ The web build also resolves `app/(tabs)/home.web.tsx` and
 `app/(tabs)/_layout.web.tsx` instead of the citizen dashboard. This gives
 district officers a dedicated operations overview with links to the
 ground-report queue and verification detail pages.
+
+## Emergency coordination maps
+
+Emergency coordination uses OpenStreetMap tiles through Leaflet on web and the
+installed `react-native-maps` provider on iOS and Android. Map markers use
+latitude/longitude from emergency-location rows when supplied; the sample Kegalle
+response falls back to town-centre coordinates. OpenStreetMap attribution is shown
+with each map. The maps need an internet connection to load tiles.
+
+For Android native builds, set `GOOGLE_MAPS_API_KEY` in the local environment
+before running an Expo native build. `app.config.js` passes it to the
+`react-native-maps` config plugin. Rebuild the native app after changing this
+key. The web map does not need a Google Maps key.

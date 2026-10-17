@@ -12,14 +12,19 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "@/src/components/ui";
+import { emergencyCoordinationRoutes } from "@/src/features/emergency-coordination/routes";
 import { colors } from "@/src/theme";
 import { supabase } from "@/lib/supabase";
 
 type DmcWebShellProps = {
-  activeNav?: "dashboard" | "hazards" | "ground-reports" | "analytics";
+  activeNav?: "dashboard" | "hazards" | "ground-reports" | "emergency-coordination" | "analytics";
   children: ReactNode;
   topbarTitle?: string;
   protocol?: string;
+  profileInitials?: string;
+  profileName?: string;
+  profileSubtitle?: string;
+  showTopbarSignOut?: boolean;
 };
 
 export function DmcWebShell({
@@ -27,6 +32,10 @@ export function DmcWebShell({
   children,
   protocol = "PROTOCOL LEVEL 3",
   topbarTitle = "HAZARD ASSESSMENT & WARNING",
+  profileInitials = "RV",
+  profileName = "Capt. R. Vance · Commander",
+  profileSubtitle = "Duty Command HQ",
+  showTopbarSignOut = true,
 }: DmcWebShellProps) {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
@@ -61,7 +70,7 @@ export function DmcWebShell({
             <NavItem
               icon={LayoutDashboard}
               label="Dashboard"
-              onPress={() => router.push("/dashboard")}
+              onPress={() => router.push("/dashboard" as never)}
               selected={activeNav === "dashboard"}
             />
             <NavItem
@@ -76,11 +85,18 @@ export function DmcWebShell({
               onPress={() => router.push("/ground-reports")}
               selected={activeNav === "ground-reports"}
             />
-            <NavItem icon={UsersRound} label="Emergency coordination" />
+            <NavItem
+              icon={UsersRound}
+              label="Emergency coordination"
+              onPress={() =>
+                router.push(emergencyCoordinationRoutes.activeEmergency as never)
+              }
+              selected={activeNav === "emergency-coordination"}
+            />
             <NavItem
               icon={BarChart3}
               label="Analytics & reports"
-              onPress={() => router.push("/analytics")}
+              onPress={() => router.push("/analytics" as never)}
               selected={activeNav === "analytics"}
             />
           </View>
@@ -102,24 +118,34 @@ export function DmcWebShell({
             {topbarTitle}
             {protocol ? (
               <>
-                　/　<Text style={styles.protocol}>{protocol}</Text>
+                {"　/　"}
+                <Text style={styles.protocol}>{protocol}</Text>
               </>
             ) : null}
           </Text>
           <View style={styles.topbarRight}>
             <View style={styles.profile}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>RV</Text>
-              </View>
+              {profileInitials ? (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{profileInitials}</Text>
+                </View>
+              ) : null}
               <Text style={styles.commander}>
-                Capt. R. Vance · Commander{"\n"}
-                <Text style={styles.duty}>Duty Command HQ</Text>
+                {profileName}
+                {profileSubtitle ? (
+                  <>
+                    {"\n"}
+                    <Text style={styles.duty}>{profileSubtitle}</Text>
+                  </>
+                ) : null}
               </Text>
             </View>
-            <Pressable accessibilityRole="button" disabled={signingOut} onPress={() => void handleSignOut()} style={({ pressed }) => [styles.topbarSignOut, pressed && styles.pressed, signingOut && styles.disabled]}>
-              <Icon color={colors.primary} icon={LogOut} size={17} />
-              <Text style={styles.topbarSignOutText}>{signingOut ? "Signing out…" : "Sign out"}</Text>
-            </Pressable>
+            {showTopbarSignOut ? (
+              <Pressable accessibilityRole="button" disabled={signingOut} onPress={() => void handleSignOut()} style={({ pressed }) => [styles.topbarSignOut, pressed && styles.pressed, signingOut && styles.disabled]}>
+                <Icon color={colors.primary} icon={LogOut} size={17} />
+                <Text style={styles.topbarSignOutText}>{signingOut ? "Signing out…" : "Sign out"}</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
         {children}
@@ -141,8 +167,10 @@ function NavItem({
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onPress}
       style={[styles.navItem, selected && styles.navSelected]}
+      testID={`nav-${label}`}
     >
       <Icon color={selected ? "#67A7FF" : "#98A9C2"} icon={icon} size={21} />
       <Text style={[styles.navText, selected && styles.navTextSelected]}>

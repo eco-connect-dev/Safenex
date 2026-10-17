@@ -114,11 +114,10 @@ export function PrepareWarningScreen() {
   const [channels, setChannels] = useState<string[]>(["push", "sms", "siren"]);
   const [message, setMessage] = useState("Severe flooding is expected. Move to higher ground immediately and follow official protection instructions.");
   const [hazard, setHazard] = useState<HazardRecord | null>(null);
-  const [hazardError, setHazardError] = useState("");
   const [draftMessage, setDraftMessage] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
   useEffect(() => {
-    getActiveHazards().then((items) => setHazard(items.find((item) => item.id === requestedHazardId) ?? items[0] ?? null)).catch((error: Error) => setHazardError(error.message));
+    getActiveHazards().then((items) => setHazard(items.find((item) => item.id === requestedHazardId) ?? items[0] ?? null)).catch((error: Error) => setDraftMessage(error.message));
   }, [requestedHazardId]);
   const saveDraft = async () => {
     if (!hazard) return;
