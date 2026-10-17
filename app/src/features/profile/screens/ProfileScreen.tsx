@@ -76,7 +76,7 @@ export default function ProfileScreen() {
               <TextField label="District" autoCapitalize="words" placeholder="Add your district" value={district} onChangeText={setDistrict} />
 
               {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-              {success ? <Text accessibilityRole="status" style={styles.success}>{success}</Text> : null}
+              {success ? <Text style={styles.success}>{success}</Text> : null}
 
               <View style={styles.saveRow}>
                 <Button label={saving ? "Saving profile…" : "Save changes"} onPress={() => void handleSave()} loading={saving} disabled={loading || !profile} />
